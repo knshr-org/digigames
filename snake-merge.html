@@ -10,11 +10,22 @@
     background: #111;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    height: 100vh;
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
     font-family: "Segoe UI", sans-serif;
     color: #eee; user-select: none;
+    touch-action: none;
   }
-  #hud { margin-bottom: 10px; font-size: 0.85rem; color: #555; letter-spacing: 2px; display: flex; align-items: center; gap: 6px; }
+  #game-wrap {
+    display: flex; flex-direction: column;
+    align-items: center;
+    width: 100%; max-width: 640px;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px;
+    gap: 6px;
+  }
+  #hud { font-size: 0.85rem; color: #555; letter-spacing: 2px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   #hud span { color: #fff; font-weight: bold; font-size: 1rem; }
   #mute-btn {
     background: none; border: 1px solid #333; color: #888;
@@ -23,13 +34,19 @@
     transition: border-color 0.2s, color 0.2s;
   }
   #mute-btn:hover { border-color: #fff; color: #fff; }
-  canvas { border: 1px solid #1e1e1e; border-radius: 4px; display: block; }
-  #msg { margin-top: 10px; font-size: 0.72rem; color: #333; letter-spacing: 2px; }
+  #canvas-wrap {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    width: 100%;
+  }
+  canvas { border: 1px solid #1e1e1e; border-radius: 4px; display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+  #msg { font-size: 0.72rem; color: #333; letter-spacing: 2px; flex-shrink: 0; }
   #overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.88);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 14px;
+    z-index: 50;
   }
   #overlay h2 { font-size: 2rem; letter-spacing: 4px; }
   #overlay p  { color: #555; font-size: 0.82rem; }
@@ -42,23 +59,25 @@
   }
   #overlay button:hover { border-color: #fff; color: #fff; }
   #dpad {
-    display: none; margin-top: 14px;
-    width: 150px; height: 150px;
+    display: none;
+    flex-shrink: 0;
+    width: 180px; height: 180px;
     position: relative;
+    margin: 0 auto;
   }
   .dpad-btn {
-    position: absolute; width: 50px; height: 50px;
-    background: rgba(255,255,255,0.08); border: 1px solid #333;
-    border-radius: 6px; color: #888; font-size: 1.4rem;
+    position: absolute; width: 60px; height: 60px;
+    background: rgba(255,255,255,0.1); border: 1px solid #444;
+    border-radius: 10px; color: #aaa; font-size: 1.6rem;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
-  .dpad-btn:active { background: rgba(255,255,255,0.2); border-color: #666; color: #fff; }
-  #dpad-u { top: 0; left: 50px; }
-  #dpad-d { bottom: 0; left: 50px; }
-  #dpad-l { top: 50px; left: 0; }
-  #dpad-r { top: 50px; right: 0; }
+  .dpad-btn:active { background: rgba(255,255,255,0.25); border-color: #888; color: #fff; }
+  #dpad-u { top: 0; left: 60px; }
+  #dpad-d { bottom: 0; left: 60px; }
+  #dpad-l { top: 60px; left: 0; }
+  #dpad-r { top: 60px; right: 0; }
   @media (pointer: coarse) {
     #dpad { display: block; }
     #msg { display: none; }
@@ -66,14 +85,16 @@
 </style>
 </head>
 <body>
-<div id="hud">SCORE &nbsp;<span id="score">0</span> &nbsp;&nbsp; BEST &nbsp;<span id="best">0</span><button id="mute-btn" title="Toggle sound">&#x1F50A;</button></div>
-<canvas id="c"></canvas>
-<div id="msg">ARROW KEYS or WASD</div>
-<div id="dpad">
-  <div class="dpad-btn" id="dpad-u">&#9650;</div>
-  <div class="dpad-btn" id="dpad-d">&#9660;</div>
-  <div class="dpad-btn" id="dpad-l">&#9664;</div>
-  <div class="dpad-btn" id="dpad-r">&#9654;</div>
+<div id="game-wrap">
+  <div id="hud">SCORE &nbsp;<span id="score">0</span> &nbsp;&nbsp; BEST &nbsp;<span id="best">0</span><button id="mute-btn" title="Toggle sound">&#x1F50A;</button></div>
+  <div id="canvas-wrap"><canvas id="c"></canvas></div>
+  <div id="msg">ARROW KEYS or WASD</div>
+  <div id="dpad">
+    <div class="dpad-btn" id="dpad-u">&#9650;</div>
+    <div class="dpad-btn" id="dpad-d">&#9660;</div>
+    <div class="dpad-btn" id="dpad-l">&#9664;</div>
+    <div class="dpad-btn" id="dpad-r">&#9654;</div>
+  </div>
 </div>
 <div id="overlay">
   <h2 id="ol-title">SNAKE</h2>
@@ -344,22 +365,26 @@ document.getElementById('dpad-d').addEventListener('pointerdown', function(e) { 
 document.getElementById('dpad-l').addEventListener('pointerdown', function(e) { e.preventDefault(); setDir({x:-1,y:0}); });
 document.getElementById('dpad-r').addEventListener('pointerdown', function(e) { e.preventDefault(); setDir({x:1,y:0}); });
 
-/* ── Swipe support ── */
-var touchX = 0, touchY = 0;
-canvas.addEventListener('touchstart', function(e) {
+/* ── Swipe support (full screen, triggers on move for responsiveness) ── */
+var touchX = 0, touchY = 0, swiped = false;
+document.addEventListener('touchstart', function(e) {
+  if (e.target.closest('#dpad') || e.target.closest('#overlay') || e.target.closest('#mute-btn')) return;
   var t = e.touches[0];
   touchX = t.clientX; touchY = t.clientY;
+  swiped = false;
 }, {passive: true});
-canvas.addEventListener('touchend', function(e) {
-  var t = e.changedTouches[0];
+document.addEventListener('touchmove', function(e) {
+  if (swiped) return;
+  var t = e.touches[0];
   var dx = t.clientX - touchX, dy = t.clientY - touchY;
-  if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+  if (Math.abs(dx) < 15 && Math.abs(dy) < 15) return;
+  swiped = true;
   if (Math.abs(dx) > Math.abs(dy)) {
     setDir(dx > 0 ? {x:1,y:0} : {x:-1,y:0});
   } else {
     setDir(dy > 0 ? {x:0,y:1} : {x:0,y:-1});
   }
-});
+}, {passive: true});
 </script>
 </body>
 </html>
