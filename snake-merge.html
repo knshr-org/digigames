@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Snake</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -40,12 +41,40 @@
     transition: border-color 0.2s, color 0.2s;
   }
   #overlay button:hover { border-color: #fff; color: #fff; }
+  #dpad {
+    display: none; margin-top: 14px;
+    width: 150px; height: 150px;
+    position: relative;
+  }
+  .dpad-btn {
+    position: absolute; width: 50px; height: 50px;
+    background: rgba(255,255,255,0.08); border: 1px solid #333;
+    border-radius: 6px; color: #888; font-size: 1.4rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .dpad-btn:active { background: rgba(255,255,255,0.2); border-color: #666; color: #fff; }
+  #dpad-u { top: 0; left: 50px; }
+  #dpad-d { bottom: 0; left: 50px; }
+  #dpad-l { top: 50px; left: 0; }
+  #dpad-r { top: 50px; right: 0; }
+  @media (pointer: coarse) {
+    #dpad { display: block; }
+    #msg { display: none; }
+  }
 </style>
 </head>
 <body>
 <div id="hud">SCORE &nbsp;<span id="score">0</span> &nbsp;&nbsp; BEST &nbsp;<span id="best">0</span><button id="mute-btn" title="Toggle sound">&#x1F50A;</button></div>
 <canvas id="c"></canvas>
 <div id="msg">ARROW KEYS or WASD</div>
+<div id="dpad">
+  <div class="dpad-btn" id="dpad-u">&#9650;</div>
+  <div class="dpad-btn" id="dpad-d">&#9660;</div>
+  <div class="dpad-btn" id="dpad-l">&#9664;</div>
+  <div class="dpad-btn" id="dpad-r">&#9654;</div>
+</div>
 <div id="overlay">
   <h2 id="ol-title">SNAKE</h2>
   <p id="ol-sub">Eat the logos &middot; don't hit yourself</p>
@@ -302,6 +331,34 @@ document.addEventListener('keydown', function(e) {
   e.preventDefault();
   if (d.x === -dir.x && d.y === -dir.y) return;
   nextDir = d;
+});
+
+/* ── Mobile D-pad ── */
+function setDir(d) {
+  if (!running) return;
+  if (d.x === -dir.x && d.y === -dir.y) return;
+  nextDir = d;
+}
+document.getElementById('dpad-u').addEventListener('pointerdown', function(e) { e.preventDefault(); setDir({x:0,y:-1}); });
+document.getElementById('dpad-d').addEventListener('pointerdown', function(e) { e.preventDefault(); setDir({x:0,y:1}); });
+document.getElementById('dpad-l').addEventListener('pointerdown', function(e) { e.preventDefault(); setDir({x:-1,y:0}); });
+document.getElementById('dpad-r').addEventListener('pointerdown', function(e) { e.preventDefault(); setDir({x:1,y:0}); });
+
+/* ── Swipe support ── */
+var touchX = 0, touchY = 0;
+canvas.addEventListener('touchstart', function(e) {
+  var t = e.touches[0];
+  touchX = t.clientX; touchY = t.clientY;
+}, {passive: true});
+canvas.addEventListener('touchend', function(e) {
+  var t = e.changedTouches[0];
+  var dx = t.clientX - touchX, dy = t.clientY - touchY;
+  if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    setDir(dx > 0 ? {x:1,y:0} : {x:-1,y:0});
+  } else {
+    setDir(dy > 0 ? {x:0,y:1} : {x:0,y:-1});
+  }
 });
 </script>
 </body>
