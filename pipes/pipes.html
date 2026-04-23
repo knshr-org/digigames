@@ -61,6 +61,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     const uuids = Object.keys(manifest);
     setStatus('Unpacking ' + uuids.length + ' assets...');
 
+    function bytesToDataUrl(bytes, mime) {
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return 'data:' + mime + ';base64,' + btoa(binary);
+    }
+
     const blobUrls = {};
     await Promise.all(uuids.map(async (uuid) => {
       const entry = manifest[uuid];
@@ -93,10 +99,10 @@ document.addEventListener('DOMContentLoaded', async function() {
           }
         }
 
-        blobUrls[uuid] = URL.createObjectURL(new Blob([finalBytes], { type: entry.mime }));
+        blobUrls[uuid] = bytesToDataUrl(finalBytes, entry.mime);
       } catch (err) {
         console.error('Failed to decode asset ' + uuid + ':', err);
-        blobUrls[uuid] = URL.createObjectURL(new Blob([], { type: entry.mime }));
+        blobUrls[uuid] = 'data:' + entry.mime + ';base64,';
       }
     }));
 
