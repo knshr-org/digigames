@@ -13,8 +13,15 @@
     font-family: "Segoe UI", sans-serif;
     color: #eee; user-select: none;
   }
-  #hud { margin-bottom: 10px; font-size: 0.85rem; color: #555; letter-spacing: 2px; }
+  #hud { margin-bottom: 10px; font-size: 0.85rem; color: #555; letter-spacing: 2px; display: flex; align-items: center; gap: 6px; }
   #hud span { color: #fff; font-weight: bold; font-size: 1rem; }
+  #mute-btn {
+    background: none; border: 1px solid #333; color: #888;
+    font-size: 1rem; cursor: pointer; padding: 2px 7px;
+    border-radius: 3px; margin-left: 12px; line-height: 1;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  #mute-btn:hover { border-color: #fff; color: #fff; }
   canvas { border: 1px solid #1e1e1e; border-radius: 4px; display: block; }
   #msg { margin-top: 10px; font-size: 0.72rem; color: #333; letter-spacing: 2px; }
   #overlay {
@@ -36,7 +43,7 @@
 </style>
 </head>
 <body>
-<div id="hud">SCORE &nbsp;<span id="score">0</span> &nbsp;&nbsp; BEST &nbsp;<span id="best">0</span></div>
+<div id="hud">SCORE &nbsp;<span id="score">0</span> &nbsp;&nbsp; BEST &nbsp;<span id="best">0</span><button id="mute-btn" title="Toggle sound">&#x1F50A;</button></div>
 <canvas id="c"></canvas>
 <div id="msg">ARROW KEYS or WASD</div>
 <div id="overlay">
@@ -64,6 +71,113 @@ imgs[1].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAbEAAAHICAYAAADA/dS
 
 let snake, dir, nextDir, food, score, best=0, running=false, tickMs=150, timer;
 
+/* ── Web Audio API Sound Effects ── */
+var SFX = (function() {
+  var actx = null;
+  var muted = false;
+  var muteBtn = document.getElementById('mute-btn');
+
+  function ensureCtx() {
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+
+  function osc(type, freq, startTime, endTime, gainVal, detune) {
+    if (muted) return;
+    var ctx = ensureCtx();
+    var o = ctx.createOscillator();
+    var g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, startTime);
+    if (detune) o.detune.setValueAtTime(detune, startTime);
+    g.gain.setValueAtTime(gainVal || 0.18, startTime);
+    g.gain.linearRampToValueAtTime(0, endTime);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start(startTime);
+    o.stop(endTime + 0.01);
+  }
+
+  muteBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    muted = !muted;
+    muteBtn.textContent = muted ? '\u{1F507}' : '\u{1F50A}';
+  });
+
+  return {
+    /* 1. Eat food – short satisfying blip */
+    eat: function() {
+      if (muted) return;
+      var ctx = ensureCtx();
+      var t = ctx.currentTime;
+      osc('square', 520, t, t + 0.06, 0.13);
+      osc('sine',   780, t + 0.03, t + 0.1, 0.1);
+    },
+
+    /* 2. Game over – low descending tone */
+    gameOver: function() {
+      if (muted) return;
+      var ctx = ensureCtx();
+      var t = ctx.currentTime;
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(340, t);
+      o.frequency.exponentialRampToValueAtTime(80, t + 0.7);
+      g.gain.setValueAtTime(0.2, t);
+      g.gain.linearRampToValueAtTime(0, t + 0.8);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(t);
+      o.stop(t + 0.85);
+    },
+
+    /* 3. Game start – short ascending chime */
+    start: function() {
+      if (muted) return;
+      var ctx = ensureCtx();
+      var t = ctx.currentTime;
+      osc('sine', 440, t,        t + 0.1,  0.15);
+      osc('sine', 554, t + 0.08, t + 0.18, 0.15);
+      osc('sine', 660, t + 0.16, t + 0.3,  0.18);
+    },
+
+    /* 4. New high score – celebratory fanfare */
+    highScore: function() {
+      if (muted) return;
+      var ctx = ensureCtx();
+      var t = ctx.currentTime;
+      osc('square', 523, t,        t + 0.12, 0.12);
+      osc('square', 659, t + 0.1,  t + 0.22, 0.12);
+      osc('square', 784, t + 0.2,  t + 0.32, 0.14);
+      osc('sine',   1047,t + 0.3,  t + 0.55, 0.16);
+      /* add a shimmery overtone */
+      osc('triangle', 1568, t + 0.32, t + 0.6, 0.07);
+    },
+
+    /* 5. Speed up – quick ascending beep */
+    speedUp: function() {
+      if (muted) return;
+      var ctx = ensureCtx();
+      var t = ctx.currentTime;
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(400, t);
+      o.frequency.exponentialRampToValueAtTime(900, t + 0.1);
+      g.gain.setValueAtTime(0.12, t);
+      g.gain.linearRampToValueAtTime(0, t + 0.13);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(t);
+      o.stop(t + 0.15);
+    }
+  };
+})();
+
 function initGame() {
   snake   = [{x:10,y:9},{x:9,y:9},{x:8,y:9}];
   dir     = {x:1, y:0};
@@ -88,16 +202,18 @@ function tick() {
   var nx = (head.x + dir.x + COLS) % COLS;
   var ny = (head.y + dir.y + ROWS) % ROWS;
   for (var i = 0; i < snake.length - 1; i++) {
-    if (snake[i].x === nx && snake[i].y === ny) { endGame(); return; }
+    if (snake[i].x === nx && snake[i].y === ny) { SFX.gameOver(); endGame(); return; }
   }
   var ate = nx === food.x && ny === food.y;
   snake.unshift({x:nx, y:ny});
   if (ate) {
     score++;
     scoreEl.textContent = score;
-    if (score > best) { best = score; bestEl.textContent = best; }
+    var wasNewBest = score > best;
+    if (wasNewBest) { best = score; bestEl.textContent = best; }
     spawnFood();
     speedUp();
+    if (wasNewBest && score > 1) { SFX.highScore(); } else { SFX.eat(); }
   } else {
     snake.pop();
   }
@@ -109,6 +225,7 @@ function speedUp() {
     tickMs = ms;
     clearInterval(timer);
     timer = setInterval(tick, tickMs);
+    SFX.speedUp();
   }
 }
 
@@ -155,6 +272,7 @@ function startGame() {
   running = true;
   timer = setInterval(tick, tickMs);
   requestAnimationFrame(draw);
+  SFX.start();
 }
 
 function endGame() {
