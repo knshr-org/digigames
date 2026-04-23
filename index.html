@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Minigames</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d0d0d;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', sans-serif;
+    color: #eee;
+    user-select: none;
+  }
+  h1 {
+    font-size: 0.75rem;
+    letter-spacing: 6px;
+    color: #333;
+    margin-bottom: 48px;
+    text-transform: uppercase;
+  }
+  .games {
+    display: flex;
+    gap: 24px;
+  }
+  .card {
+    width: 200px;
+    border: 1px solid #1e1e1e;
+    border-radius: 6px;
+    padding: 32px 24px;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.25s, background 0.25s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .card:hover {
+    border-color: #444;
+    background: #141414;
+  }
+  .card:hover .icon { opacity: 1; }
+  .card:hover .play { color: #fff; }
+  .icon {
+    font-size: 2.8rem;
+    opacity: 0.5;
+    transition: opacity 0.25s;
+    line-height: 1;
+  }
+  .name {
+    font-size: 0.85rem;
+    letter-spacing: 4px;
+    color: #bbb;
+  }
+  .play {
+    margin-top: 8px;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: #333;
+    transition: color 0.25s;
+  }
+</style>
+</head>
+<body>
+
+<h1>Choose a Game</h1>
+
+<div class="games">
+  <a class="card" href="snake-merge.html">
+    <div class="icon">🐍</div>
+    <div class="name">SNAKE</div>
+    <div class="play">PLAY →</div>
+  </a>
+
+  <a class="card" href="pipes.html">
+    <div class="icon">🔧</div>
+    <div class="name">PIPES</div>
+    <div class="play">PLAY →</div>
+  </a>
+</div>
+
+</body>
+</html>
