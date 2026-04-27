@@ -39,68 +39,73 @@ function getPending(applied) {
   return files.filter(f => !applied.has(f));
 }
 
-async function runMigrations(pool) {
-  await ensureMigrationsTable(pool);
-  const applied = await getApplied(pool);
-  const pending = getPending(applied);
+async function runMigrations() {
+  const migrationPool = await getPool();
+  try {
+    await ensureMigrationsTable(migrationPool);
+    const applied = await getApplied(migrationPool);
+    const pending = getPending(applied);
 
-  if (pending.length === 0) {
-    console.log('No pending migrations.');
-    return 0;
-  }
-
-  for (const file of pending) {
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf-8');
-    console.log(`Running migration: ${file}`);
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
-      await conn.query(sql);
-      await conn.query('INSERT INTO migrations (name) VALUES (?)', [file]);
-      await conn.commit();
-      console.log(`  Applied: ${file}`);
-    } catch (err) {
-      await conn.rollback();
-      console.error(`  FAILED: ${file}`, err.message);
-      throw err;
-    } finally {
-      conn.release();
+    if (pending.length === 0) {
+      console.log('No pending migrations.');
+      return 0;
     }
-  }
 
-  console.log(`Applied ${pending.length} migration(s).`);
-  return pending.length;
+    for (const file of pending) {
+      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf-8').trim();
+      console.log(`Running migration: ${file}`);
+      const conn = await migrationPool.getConnection();
+      try {
+        await conn.beginTransaction();
+        await conn.query(sql);
+        await conn.query('INSERT INTO migrations (name) VALUES (?)', [file]);
+        await conn.commit();
+        console.log(`  Applied: ${file}`);
+      } catch (err) {
+        await conn.rollback();
+        console.error(`  FAILED: ${file}`, err.message);
+        throw err;
+      } finally {
+        conn.release();
+      }
+    }
+
+    console.log(`Applied ${pending.length} migration(s).`);
+    return pending.length;
+  } finally {
+    await migrationPool.end();
+  }
 }
 
-async function showStatus(pool) {
-  await ensureMigrationsTable(pool);
-  const applied = await getApplied(pool);
-  const files = fs.readdirSync(MIGRATIONS_DIR)
-    .filter(f => f.endsWith('.sql'))
-    .sort();
+async function showStatus() {
+  const pool = await getPool();
+  try {
+    await ensureMigrationsTable(pool);
+    const applied = await getApplied(pool);
+    const files = fs.readdirSync(MIGRATIONS_DIR)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
 
-  console.log('Migration status:');
-  for (const f of files) {
-    console.log(`  ${applied.has(f) ? '[x]' : '[ ]'} ${f}`);
+    console.log('Migration status:');
+    for (const f of files) {
+      console.log(`  ${applied.has(f) ? '[x]' : '[ ]'} ${f}`);
+    }
+    const pending = files.filter(f => !applied.has(f));
+    console.log(`\n${applied.size} applied, ${pending.length} pending`);
+  } finally {
+    await pool.end();
   }
-  const pending = files.filter(f => !applied.has(f));
-  console.log(`\n${applied.size} applied, ${pending.length} pending`);
 }
 
 async function main() {
   const cmd = process.argv[2] || 'up';
-  const pool = await getPool();
 
-  try {
-    if (cmd === 'up') {
-      await runMigrations(pool);
-    } else if (cmd === 'status') {
-      await showStatus(pool);
-    } else {
-      console.log('Usage: node migrate.js [up|status]');
-    }
-  } finally {
-    await pool.end();
+  if (cmd === 'up') {
+    await runMigrations();
+  } else if (cmd === 'status') {
+    await showStatus();
+  } else {
+    console.log('Usage: node migrate.js [up|status]');
   }
 }
 

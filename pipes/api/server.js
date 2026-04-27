@@ -19,7 +19,7 @@ const pool = mysql.createPool({
 });
 
 async function initDB() {
-  await runMigrations(pool);
+  await runMigrations();
 }
 
 const submitLimiter = rateLimit({
