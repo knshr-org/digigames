@@ -91,11 +91,19 @@ app.get('/api/scores/player', async (req, res) => {
   }
 });
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'db_error' });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
 initDB().then(() => {
-  app.listen(PORT, () => console.log(`Pipes API listening on port ${PORT}`));
+  app.listen(PORT, HOST, () => console.log(`Pipes API listening on ${HOST}:${PORT}`));
 }).catch(err => {
   console.error('Failed to initialize database:', err);
   process.exit(1);
