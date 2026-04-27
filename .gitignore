@@ -1,0 +1,4 @@
+node_modules/
+.env
+.playwright-mcp/
+pipes/_extracted_template.html
