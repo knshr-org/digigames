@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
@@ -13,6 +14,9 @@ app.use(cors({
   },
 }));
 app.use(express.json());
+
+const STATIC_ROOT = path.join(__dirname, '..', '..');
+app.use(express.static(STATIC_ROOT));
 
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST || process.env.MYSQLHOST || 'localhost',
@@ -94,6 +98,10 @@ app.get('/health', async (req, res) => {
   } catch {
     res.status(503).json({ status: 'db_error' });
   }
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(STATIC_ROOT, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
