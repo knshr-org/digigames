@@ -5,7 +5,13 @@ const rateLimit = require('express-rate-limit');
 const { runMigrations } = require('./migrate');
 
 const app = express();
-app.use(cors());
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'https://digigames.fun,https://www.digigames.fun').split(',');
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(null, false);
+  },
+}));
 app.use(express.json());
 
 const pool = mysql.createPool({

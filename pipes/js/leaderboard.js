@@ -1,6 +1,6 @@
 const LeaderboardAPI = (() => {
   const params = new URLSearchParams(window.location.search);
-  const API_BASE = params.get('api') || 'https://YOUR-RAILWAY-APP.railway.app';
+  const API_BASE = params.get('api') || window.PIPES_API_BASE || '';
   const LS_NAME_KEY = 'pipes_player_name';
   const LS_SCORES_KEY = 'pipes_local_scores';
 
