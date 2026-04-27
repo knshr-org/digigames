@@ -2,88 +2,402 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Minigames</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>DigiGames</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #0d0d0d;
+    background: #0a0a0f;
     min-height: 100vh;
+    min-height: 100dvh;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #eee;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+
+  /* ===== Menu view ===== */
+  #menuView {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    font-family: 'Segoe UI', sans-serif;
-    color: #eee;
-    user-select: none;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 0 20px 40px;
+    overflow-y: auto;
+    transition: opacity 0.25s, transform 0.25s;
   }
-  h1 {
-    font-size: 0.75rem;
+  #menuView.hidden {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    transform: scale(0.97);
+  }
+
+  header {
+    width: 100%;
+    max-width: 600px;
+    padding: 48px 0 36px;
+    text-align: center;
+  }
+  .logo {
+    font-size: 1.6rem;
+    font-weight: 800;
     letter-spacing: 6px;
-    color: #333;
-    margin-bottom: 48px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #ff6b5b 0%, #ffd66b 50%, #4aa8e8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .logo a {
+    text-decoration: none;
+    color: inherit;
+    -webkit-text-fill-color: inherit;
+    background: inherit;
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+  .subtitle {
+    margin-top: 8px;
+    font-size: 0.7rem;
+    letter-spacing: 4px;
+    color: #3a3a4a;
     text-transform: uppercase;
   }
-  .games {
-    display: flex;
-    gap: 24px;
+  .url-hint {
+    margin-top: 6px;
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    color: #252530;
+    font-weight: 500;
   }
+
+  .games {
+    width: 100%;
+    max-width: 600px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
   .card {
-    width: 200px;
-    border: 1px solid #1e1e1e;
-    border-radius: 6px;
-    padding: 32px 24px;
+    position: relative;
+    border: 1px solid #1a1a2e;
+    border-radius: 16px;
+    padding: 28px 24px 24px;
     cursor: pointer;
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.25s, background 0.25s;
+    transition: border-color 0.3s, background 0.3s, transform 0.2s;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
+    background: #12121c;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
-  .card:hover {
-    border-color: #444;
-    background: #141414;
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
   }
-  .card:hover .icon { opacity: 1; }
-  .card:hover .play { color: #fff; }
+  .card.snake::before {
+    background: radial-gradient(circle at 50% 30%, rgba(76, 175, 80, 0.08) 0%, transparent 70%);
+  }
+  .card.pipes::before {
+    background: radial-gradient(circle at 50% 30%, rgba(255, 107, 91, 0.08) 0%, transparent 70%);
+  }
+  .card:hover, .card:active {
+    border-color: #2a2a44;
+    background: #161626;
+    transform: translateY(-2px);
+  }
+  .card:hover::before, .card:active::before { opacity: 1; }
+  .card:active { transform: translateY(0); }
+
   .icon {
-    font-size: 2.8rem;
-    opacity: 0.5;
-    transition: opacity 0.25s;
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
     line-height: 1;
   }
+  .snake .icon { background: rgba(76, 175, 80, 0.12); }
+  .pipes .icon { background: rgba(255, 107, 91, 0.12); }
+
+  .info { text-align: center; }
   .name {
-    font-size: 0.85rem;
-    letter-spacing: 4px;
-    color: #bbb;
-  }
-  .play {
-    margin-top: 8px;
-    font-size: 0.65rem;
+    font-size: 0.95rem;
+    font-weight: 700;
     letter-spacing: 3px;
-    color: #333;
-    transition: color 0.25s;
+    color: #ddd;
   }
+  .desc {
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: #555;
+    letter-spacing: 0.5px;
+  }
+  .play-btn {
+    margin-top: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 3px;
+    padding: 8px 24px;
+    border-radius: 20px;
+    transition: background 0.25s, color 0.25s;
+  }
+  .snake .play-btn { color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+  .pipes .play-btn { color: #ff6b5b; background: rgba(255, 107, 91, 0.1); }
+  .card:hover .play-btn, .card:active .play-btn { color: #fff; }
+  .snake:hover .play-btn, .snake:active .play-btn { background: rgba(76, 175, 80, 0.25); }
+  .pipes:hover .play-btn, .pipes:active .play-btn { background: rgba(255, 107, 91, 0.25); }
+
+  footer {
+    margin-top: auto;
+    padding-top: 48px;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: #222;
+  }
+
+  @media (max-width: 540px) {
+    header { padding: 36px 0 28px; }
+    .games { grid-template-columns: 1fr; gap: 12px; }
+    .card {
+      flex-direction: row;
+      padding: 18px 20px;
+      gap: 16px;
+    }
+    .icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      font-size: 1.6rem;
+      flex-shrink: 0;
+    }
+    .info { text-align: left; flex: 1; }
+    .name { font-size: 0.85rem; }
+    .play-btn {
+      margin-top: 0;
+      padding: 8px 18px;
+      flex-shrink: 0;
+      align-self: center;
+    }
+  }
+
+  /* ===== Game view ===== */
+  #gameView {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: #0a0a0f;
+    display: none;
+    flex-direction: column;
+  }
+  #gameView.active {
+    display: flex;
+  }
+
+  #gameBar {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 12px;
+    background: #0e0e18;
+    border-bottom: 1px solid #1a1a2e;
+    flex-shrink: 0;
+    gap: 12px;
+    z-index: 10;
+  }
+  #backBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1px solid #1a1a2e;
+    border-radius: 8px;
+    color: #888;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    flex-shrink: 0;
+  }
+  #backBtn:hover, #backBtn:active {
+    color: #ddd;
+    border-color: #333;
+  }
+  #backBtn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+  }
+  #gameTitle {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #444;
+    text-transform: uppercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #gameBrand {
+    margin-left: auto;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #1e1e2e;
+    flex-shrink: 0;
+  }
+
+  #gameFrame {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: #0a0a0f;
+  }
+
+  @media (max-width: 540px) {
+    #gameBar { height: 40px; padding: 0 8px; }
+    #backBtn { padding: 5px 10px; font-size: 0.65rem; }
+    #gameTitle { font-size: 0.6rem; letter-spacing: 2px; }
+  }
+
+  /* ===== Loading spinner ===== */
+  #gameLoading {
+    position: absolute;
+    inset: 44px 0 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0a0f;
+    z-index: 5;
+    transition: opacity 0.3s;
+  }
+  #gameLoading.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #1a1a2e;
+    border-top-color: #ff6b5b;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<h1>Choose a Game</h1>
+<!-- ===== Menu screen ===== -->
+<div id="menuView">
+  <header>
+    <div class="logo"><a href="#" id="homeLink">DigiGames</a></div>
+    <div class="subtitle">Choose a game</div>
+    <div class="url-hint">www.digigames.fun</div>
+  </header>
 
-<div class="games">
-  <a class="card" href="snake-merge.html">
-    <div class="icon">🐍</div>
-    <div class="name">SNAKE</div>
-    <div class="play">PLAY →</div>
-  </a>
+  <div class="games">
+    <a class="card snake" href="#snake" data-game="snake">
+      <div class="icon">🐍</div>
+      <div class="info">
+        <div class="name">SNAKE</div>
+        <div class="desc">Classic snake with a merge twist</div>
+      </div>
+      <div class="play-btn">PLAY</div>
+    </a>
 
-  <a class="card" href="pipes/pipes.html">
-    <div class="icon">🔧</div>
-    <div class="name">PIPES</div>
-    <div class="play">PLAY →</div>
-  </a>
+    <a class="card pipes" href="#pipes" data-game="pipes">
+      <div class="icon">🔧</div>
+      <div class="info">
+        <div class="name">PIPES</div>
+        <div class="desc">Flappy pipes endless runner</div>
+      </div>
+      <div class="play-btn">PLAY</div>
+    </a>
+  </div>
+
+  <footer>DIGIGAMES</footer>
 </div>
 
+<!-- ===== Game screen (iframe shell) ===== -->
+<div id="gameView">
+  <div id="gameBar">
+    <button id="backBtn">
+      <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      MENU
+    </button>
+    <span id="gameTitle"></span>
+    <span id="gameBrand">DIGIGAMES</span>
+  </div>
+  <div id="gameLoading"><div class="spinner"></div></div>
+  <iframe id="gameFrame" allowfullscreen></iframe>
+</div>
+
+<script>
+const ROUTES = {
+  snake: { src: 'snake-merge.html', title: 'SNAKE' },
+  pipes: { src: 'pipes/pipes.html', title: 'PIPES' },
+};
+
+const menuView = document.getElementById('menuView');
+const gameView = document.getElementById('gameView');
+const gameFrame = document.getElementById('gameFrame');
+const gameTitle = document.getElementById('gameTitle');
+const gameLoading = document.getElementById('gameLoading');
+
+function showMenu() {
+  gameFrame.src = 'about:blank';
+  gameView.classList.remove('active');
+  menuView.classList.remove('hidden');
+  document.title = 'DigiGames';
+}
+
+function showGame(key) {
+  const route = ROUTES[key];
+  if (!route) { showMenu(); return; }
+  menuView.classList.add('hidden');
+  gameView.classList.add('active');
+  gameLoading.classList.remove('hidden');
+  gameTitle.textContent = route.title;
+  document.title = route.title + ' - DigiGames';
+  gameFrame.onload = () => gameLoading.classList.add('hidden');
+  gameFrame.src = route.src;
+}
+
+function navigate() {
+  const hash = location.hash.replace('#', '').toLowerCase();
+  if (hash && ROUTES[hash]) {
+    showGame(hash);
+  } else {
+    showMenu();
+  }
+}
+
+window.addEventListener('hashchange', navigate);
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  location.hash = '';
+});
+
+navigate();
+</script>
 </body>
 </html>

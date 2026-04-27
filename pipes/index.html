@@ -22,13 +22,13 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  /* Stage: fixed 9:16 playfield, scales to fit */
   #stage {
     position: relative;
     width: min(100vw, calc(100vh * 9 / 16));
@@ -39,6 +39,27 @@
     overflow: hidden;
     box-shadow: 0 20px 60px rgba(0,0,0,0.45);
     cursor: pointer;
+    will-change: transform;
+  }
+  @media (max-width: 600px) {
+    #stage {
+      max-width: 100vw;
+      max-height: 100dvh;
+      width: min(100vw, calc(100dvh * 9 / 16));
+      height: min(100dvh, calc(100vw * 16 / 9));
+      box-shadow: none;
+      border-radius: 0;
+    }
+    #controls { display: none !important; }
+  }
+  @media (orientation: landscape) and (max-height: 500px) {
+    #stage {
+      width: calc(100dvh * 9 / 16);
+      height: 100dvh;
+      max-width: none;
+      max-height: 100dvh;
+    }
+    #controls { display: none !important; }
   }
   #stage.shake { animation: shake 0.35s cubic-bezier(.36,.07,.19,.97) both; }
   @keyframes shake {
@@ -90,6 +111,9 @@
   .saw-blade { animation: rotateSpin 0.4s linear infinite; transform-origin: center; transform-box: fill-box; }
   .saw-blade.reverse { animation-direction: reverse; }
   .cloud { opacity: 0.92; }
+  #obstacleLayer, #powerupLayer, #ballGroup, #trailLayer { will-change: transform; }
+  .reduce-fx #ballInner { filter: none !important; }
+  .reduce-fx #scoreText { filter: none !important; }
 
   /* Tweaks panel */
   #tweaks {
@@ -150,9 +174,11 @@
 </head>
 <body>
 
+<audio id="bgmAudio" src="assets/bgm.mp3" loop preload="auto" style="display:none"></audio>
+
 <div id="stage" tabindex="0" aria-label="Pipes game. Press space or tap to flap.">
   <!-- Main SVG -->
-  <svg id="world" viewBox="0 0 540 960" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <svg id="world" viewBox="0 0 540 960" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
     <defs>
       <!-- Sky gradient (mutable via JS) -->
       <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
@@ -193,16 +219,13 @@
         <rect width="24" height="14" fill="#7ac074"/>
         <path d="M4 14 L6 6 L8 14 M12 14 L14 4 L16 14 M20 14 L22 7 L24 14" stroke="#5ea758" stroke-width="1.5" fill="none" stroke-linecap="round"/>
       </pattern>
-      <!-- Shadow filter for ball -->
-      <filter id="ballShadow" x="-40%" y="-40%" width="180%" height="180%">
-        <feGaussianBlur in="SourceAlpha" stdDeviation="2.5"/>
-        <feOffset dx="0" dy="3" result="off"/>
-        <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
-        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+      <!-- Shadow filter for ball (lightweight) -->
+      <filter id="ballShadow" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="3" stdDeviation="1.5" flood-color="#000" flood-opacity="0.3"/>
       </filter>
       <!-- Score text outline -->
       <filter id="scoreShadow" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0" dy="4" stdDeviation="2" flood-color="#000" flood-opacity="0.35"/>
+        <feDropShadow dx="0" dy="3" stdDeviation="1.5" flood-color="#000" flood-opacity="0.3"/>
       </filter>
     </defs>
 
@@ -275,44 +298,173 @@
       <g id="fxGroup" transform="translate(10 84)"></g>
     </g>
 
-    <!-- Start hint -->
-    <g id="startHintG" opacity="1">
-      <rect x="90" y="370" width="360" height="220" rx="22" fill="#20201f" opacity="0.78"/>
-      <text x="270" y="460" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="48" fill="#fff" letter-spacing="4">PIPES</text>
-      <text x="270" y="498" text-anchor="middle" font-family="Rubik" font-weight="500" font-size="14" fill="#cdd1dc" letter-spacing="2">TAP OR PRESS SPACE TO FLAP</text>
-      <g transform="translate(270 548)">
-        <rect x="-80" y="-16" width="160" height="36" rx="18" fill="#ff6b5b"/>
-        <text y="8" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.5">START</text>
+    <!-- Main menu -->
+    <g id="menuG" opacity="1">
+      <rect width="540" height="960" fill="#000" opacity="0.3"/>
+      <rect x="90" y="260" width="360" height="380" rx="22" fill="#20201f" opacity="0.82"/>
+      <text x="270" y="350" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="52" fill="#fff" letter-spacing="4">PIPES</text>
+      <text x="270" y="385" text-anchor="middle" font-family="Rubik" font-weight="500" font-size="12" fill="#9aa0ae" letter-spacing="3">FLAPPY PIPES GAME</text>
+
+      <!-- Start button -->
+      <g id="menuStartBtn" style="cursor:pointer">
+        <rect x="150" y="420" width="240" height="50" rx="25" fill="#ff6b5b"/>
+        <text x="270" y="452" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="18" fill="#fff" letter-spacing="2">START</text>
+      </g>
+
+      <!-- Leaderboards button -->
+      <g id="menuLeaderBtn" style="cursor:pointer">
+        <rect x="150" y="485" width="240" height="50" rx="25" fill="#4aa8e8"/>
+        <text x="270" y="517" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="18" fill="#fff" letter-spacing="2">LEADERBOARDS</text>
+      </g>
+
+      <!-- Settings button -->
+      <g id="menuSettingsBtn" style="cursor:pointer">
+        <rect x="150" y="550" width="240" height="50" rx="25" fill="#6e7486"/>
+        <text x="270" y="582" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="18" fill="#fff" letter-spacing="2">SETTINGS</text>
+      </g>
+    </g>
+
+    <!-- Leaderboard overlay -->
+    <g id="leaderboardG" opacity="0" style="pointer-events:none">
+      <rect width="540" height="960" fill="#000" opacity="0.55"/>
+      <rect x="40" y="80" width="460" height="760" rx="24" fill="#fffbef" stroke="#2a1a10" stroke-width="4"/>
+      <text x="270" y="140" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="32" fill="#2a1a10">LEADERBOARDS</text>
+      <line x1="80" y1="160" x2="460" y2="160" stroke="#2a1a10" stroke-opacity="0.15" stroke-width="2"/>
+
+      <!-- Tabs -->
+      <g id="lbTabGlobal" style="cursor:pointer">
+        <rect x="80" y="175" width="180" height="40" rx="12" fill="#ff6b5b"/>
+        <text x="170" y="201" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="14" fill="#fff" letter-spacing="1">GLOBAL</text>
+      </g>
+      <g id="lbTabMine" style="cursor:pointer">
+        <rect x="280" y="175" width="180" height="40" rx="12" fill="#cdd1dc"/>
+        <text x="370" y="201" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="14" fill="#2a1a10" letter-spacing="1">MY SCORES</text>
+      </g>
+
+      <!-- Score rows container -->
+      <g id="lbRows" transform="translate(0 230)"></g>
+
+      <!-- Loading / error state -->
+      <text id="lbStatus" x="270" y="450" text-anchor="middle" font-family="Rubik" font-weight="500" font-size="16" fill="#6e7486" opacity="0"></text>
+
+      <!-- Back button -->
+      <g id="lbBackBtn" style="cursor:pointer">
+        <rect x="170" y="770" width="200" height="44" rx="22" fill="#ff6b5b"/>
+        <text x="270" y="798" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.5">BACK</text>
+      </g>
+    </g>
+
+    <!-- Settings overlay -->
+    <g id="settingsG" opacity="0" style="pointer-events:none">
+      <rect width="540" height="960" fill="#000" opacity="0.55"/>
+      <rect x="70" y="260" width="400" height="380" rx="24" fill="#fffbef" stroke="#2a1a10" stroke-width="4"/>
+      <text x="270" y="320" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="32" fill="#2a1a10">SETTINGS</text>
+      <line x1="120" y1="340" x2="420" y2="340" stroke="#2a1a10" stroke-opacity="0.15" stroke-width="2"/>
+
+      <!-- Music label + mute button -->
+      <text x="120" y="385" font-family="Rubik" font-weight="700" font-size="16" fill="#2a1a10">MUSIC</text>
+      <g id="bgmMuteBtn" style="cursor:pointer">
+        <rect x="370" y="367" width="60" height="28" rx="14" fill="#44c4a9"/>
+        <text id="bgmMuteText" x="400" y="386" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="11" fill="#fff">ON</text>
+      </g>
+
+      <!-- Music volume -->
+      <rect x="120" y="400" width="310" height="8" rx="4" fill="#e0ddd4"/>
+      <rect id="bgmFill" x="120" y="400" width="217" height="8" rx="4" fill="#44c4a9"/>
+      <circle id="bgmKnob" cx="337" cy="404" r="14" fill="#fff" stroke="#44c4a9" stroke-width="3" style="cursor:pointer"/>
+
+      <!-- SFX label + mute button -->
+      <text x="120" y="470" font-family="Rubik" font-weight="700" font-size="16" fill="#2a1a10">SOUND FX</text>
+      <g id="sfxMuteBtn" style="cursor:pointer">
+        <rect x="370" y="452" width="60" height="28" rx="14" fill="#4aa8e8"/>
+        <text id="sfxMuteText" x="400" y="471" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="11" fill="#fff">ON</text>
+      </g>
+
+      <!-- SFX volume -->
+      <rect x="120" y="485" width="310" height="8" rx="4" fill="#e0ddd4"/>
+      <rect id="sfxFill" x="120" y="485" width="248" height="8" rx="4" fill="#4aa8e8"/>
+      <circle id="sfxKnob" cx="368" cy="489" r="14" fill="#fff" stroke="#4aa8e8" stroke-width="3" style="cursor:pointer"/>
+
+      <!-- Back button -->
+      <g id="settingsBackBtn" style="cursor:pointer">
+        <rect x="170" y="540" width="200" height="44" rx="22" fill="#ff6b5b"/>
+        <text x="270" y="568" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.5">BACK</text>
       </g>
     </g>
 
     <!-- Pause overlay -->
     <g id="pauseG" opacity="0" style="pointer-events:none">
       <rect width="540" height="960" fill="#000" opacity="0.45"/>
-      <text x="270" y="470" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="48" fill="#fff">PAUSED</text>
-      <text x="270" y="510" text-anchor="middle" font-family="Rubik" font-weight="500" font-size="14" fill="#cdd1dc" letter-spacing="2">PRESS P TO RESUME</text>
+      <rect x="120" y="340" width="300" height="280" rx="22" fill="#20201f" opacity="0.9"/>
+      <text x="270" y="410" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="42" fill="#fff">PAUSED</text>
+
+      <!-- Resume button -->
+      <g id="pauseResumeBtn" style="cursor:pointer">
+        <rect x="170" y="440" width="200" height="44" rx="22" fill="#44c4a9"/>
+        <text x="270" y="468" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.5">RESUME</text>
+      </g>
+
+      <!-- Menu button -->
+      <g id="pauseMenuBtn" style="cursor:pointer">
+        <rect x="170" y="500" width="200" height="44" rx="22" fill="#6e7486"/>
+        <text x="270" y="528" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.5">MENU</text>
+      </g>
+
+      <!-- Quit confirm (hidden by default) -->
+      <g id="pauseConfirmG" opacity="0" style="pointer-events:none">
+        <text x="270" y="570" text-anchor="middle" font-family="Rubik" font-weight="500" font-size="12" fill="#cdd1dc">Quit to menu? Progress will be lost.</text>
+        <g id="pauseConfirmYes" style="cursor:pointer">
+          <rect x="150" y="580" width="110" height="36" rx="18" fill="#ff6b5b"/>
+          <text x="205" y="604" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="13" fill="#fff">YES</text>
+        </g>
+        <g id="pauseConfirmNo" style="cursor:pointer">
+          <rect x="280" y="580" width="110" height="36" rx="18" fill="#44c4a9"/>
+          <text x="335" y="604" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="13" fill="#fff">NO</text>
+        </g>
+      </g>
     </g>
 
     <!-- Game over overlay -->
     <g id="gameOverG" opacity="0" style="pointer-events:none">
       <rect width="540" height="960" fill="#000" opacity="0.55"/>
-      <rect x="70" y="300" width="400" height="360" rx="24" fill="#fffbef" stroke="#2a1a10" stroke-width="4"/>
-      <text x="270" y="370" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="42" fill="#2a1a10" letter-spacing="1">GAME OVER</text>
-      <line x1="120" y1="390" x2="420" y2="390" stroke="#2a1a10" stroke-opacity="0.15" stroke-width="2"/>
+      <rect x="50" y="200" width="440" height="540" rx="24" fill="#fffbef" stroke="#2a1a10" stroke-width="4"/>
+      <text x="270" y="270" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="42" fill="#2a1a10" letter-spacing="1">GAME OVER</text>
+      <line x1="100" y1="290" x2="440" y2="290" stroke="#2a1a10" stroke-opacity="0.15" stroke-width="2"/>
 
       <!-- Medal slot -->
-      <g id="medalSlot" transform="translate(160 480)"></g>
+      <g id="medalSlot" transform="translate(140 380)"></g>
 
-      <g transform="translate(260 440)">
+      <g transform="translate(260 340)">
         <text font-family="Rubik" font-weight="500" font-size="14" fill="#6e7486" letter-spacing="2">SCORE</text>
         <text id="finalScore" y="38" font-family="Rubik" font-weight="900" font-size="38" fill="#2a1a10">0</text>
         <text y="72" font-family="Rubik" font-weight="500" font-size="14" fill="#6e7486" letter-spacing="2">BEST</text>
         <text id="finalBest" y="100" font-family="Rubik" font-weight="900" font-size="24" fill="#ff6b5b">0</text>
       </g>
 
-      <g transform="translate(270 620)">
-        <rect x="-110" y="-22" width="220" height="44" rx="22" fill="#ff6b5b"/>
-        <text y="8" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.8">TAP OR PRESS R</text>
+      <!-- Name input area (foreignObject for HTML input inside SVG) -->
+      <foreignObject x="100" y="470" width="340" height="45">
+        <input id="scoreNameInput" type="text" maxlength="20" placeholder="Enter your name"
+          style="width:100%;height:40px;border:2px solid #cdd1dc;border-radius:12px;padding:0 14px;
+          font-family:Rubik,sans-serif;font-size:15px;font-weight:600;color:#2a1a10;background:#fff;
+          outline:none;box-sizing:border-box;" />
+      </foreignObject>
+
+      <!-- Submit button -->
+      <g id="goSubmitBtn" style="cursor:pointer">
+        <rect x="100" y="525" width="340" height="44" rx="22" fill="#44c4a9"/>
+        <text id="goSubmitText" x="270" y="553" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.5">SUBMIT SCORE</text>
+      </g>
+
+      <!-- Retry button -->
+      <g id="goRetryBtn" style="cursor:pointer">
+        <rect x="100" y="585" width="160" height="44" rx="22" fill="#ff6b5b"/>
+        <text x="180" y="613" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.5">RETRY</text>
+      </g>
+
+      <!-- Menu button -->
+      <g id="goMenuBtn" style="cursor:pointer">
+        <rect x="280" y="585" width="160" height="44" rx="22" fill="#6e7486"/>
+        <text x="360" y="613" text-anchor="middle" font-family="Rubik" font-weight="700" font-size="15" fill="#fff" letter-spacing="1.5">MENU</text>
       </g>
     </g>
 
@@ -325,6 +477,7 @@
     <div style="background:rgba(0,0,0,0.35); color:#fff; padding:4px 9px; border-radius:10px; font-size:10px; letter-spacing:1.5px; font-weight:600;">P · PAUSE</div>
     <div style="background:rgba(0,0,0,0.35); color:#fff; padding:4px 9px; border-radius:10px; font-size:10px; letter-spacing:1.5px; font-weight:600;">R · RESET</div>
   </div>
+  <button id="pauseBtn" aria-label="Pause" style="position:absolute; top:10px; right:10px; width:44px; height:44px; border:none; border-radius:50%; background:rgba(0,0,0,0.4); color:#fff; font-size:20px; cursor:pointer; display:none; align-items:center; justify-content:center; pointer-events:auto; z-index:10; touch-action:manipulation;">⏸</button>
 </div>
 
 <!-- Tweaks panel -->
@@ -367,16 +520,19 @@
   <div class="hint">Live preview — settings stick.</div>
 </div>
 
+<script src="js/audio.js"></script>
+<script src="js/leaderboard.js"></script>
+
 <script>
 // ===== Tweakable defaults (persisted via EDITMODE block) =====
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-  "gravity": 0.35,
-  "flap": 7.5,
+  "gravity": 0.25,
+  "flap": 8,
   "baseSpeed": 2.25,
   "gapSize": 220,
   "ballPalette": "coral",
   "startTier": 4,
-  "showHitboxes": true
+  "showHitboxes": false
 }/*EDITMODE-END*/;
 
 const BALL_PALETTES = {
@@ -419,7 +575,7 @@ const BALL_R = 22;
 
 // ===== State =====
 const state = {
-  mode: 'start',        // 'start' | 'play' | 'pause' | 'over'
+  mode: 'menu',         // 'menu' | 'play' | 'pause' | 'over'
   ball: { x: BALL_X, y: 480, vy: 0, rot: 0 },
   obstacles: [],
   powerups: [],         // floating collectibles
@@ -435,6 +591,7 @@ const state = {
   lastT: 0,
   time: 0
 };
+state.best = parseInt(localStorage.getItem('pipes_best_score')) || 0;
 
 // ===== Tier config =====
 function tierFor(score) {
@@ -484,17 +641,43 @@ const scoreText = document.getElementById('scoreText');
 const bestText = document.getElementById('bestText');
 const finalScore = document.getElementById('finalScore');
 const finalBest = document.getElementById('finalBest');
-const startHintG = document.getElementById('startHintG');
+const menuG = document.getElementById('menuG');
+const leaderboardG = document.getElementById('leaderboardG');
+const settingsG = document.getElementById('settingsG');
+const scoreNameInput = document.getElementById('scoreNameInput');
 const pauseG = document.getElementById('pauseG');
 const gameOverG = document.getElementById('gameOverG');
 const bannerG = document.getElementById('bannerG');
 const medalSlot = document.getElementById('medalSlot');
+const hitboxLayer = document.getElementById('hitboxLayer');
+
+// ===== Performance detection =====
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const IS_LOW_POWER = IS_MOBILE || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+if (IS_LOW_POWER) document.getElementById('stage').classList.add('reduce-fx');
+
+// ===== Trail pool (pre-allocated SVG circles) =====
+const TRAIL_POOL_SIZE = 8;
+const trailPool = [];
+function initTrailPool() {
+  for (let i = 0; i < TRAIL_POOL_SIZE; i++) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', '0');
+    c.setAttribute('cy', '0');
+    c.setAttribute('r', '0');
+    c.setAttribute('fill', '#ff6b5b');
+    c.setAttribute('opacity', '0');
+    trailLayer.appendChild(c);
+    trailPool.push(c);
+  }
+}
 
 // ===== Init scenery =====
 function initClouds() {
   state.clouds = [];
   cloudLayer.innerHTML = '';
-  for (let i = 0; i < 6; i++) {
+  const cloudCount = IS_LOW_POWER ? 3 : 6;
+  for (let i = 0; i < cloudCount; i++) {
     const c = { x: Math.random() * W, y: 60 + Math.random() * 300, s: 0.7 + Math.random() * 0.8 };
     state.clouds.push(c);
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -631,6 +814,16 @@ function spawnObstacle() {
   ob.topEl = topPipe;
   ob.botEl = botPipe;
 
+  // Cache direct refs for moving pipe updates (avoids querySelectorAll per frame)
+  const topRects = topPipe.querySelectorAll('rect');
+  ob._topBody = topRects[0] || null;
+  ob._topLip = topRects[1] || null;
+  ob._topSpikes = topPipe.querySelector('path');
+  const botRects = botPipe.querySelectorAll('rect');
+  ob._botLip = botRects[0] || null;
+  ob._botBody = botRects[1] || null;
+  ob._botSpikes = botPipe.querySelector('path');
+
   // Pesky guy: ~22% chance. Emerges from the top lip of the bottom pipe, waves, ducks back.
   // Clipped to the area ABOVE the pipe lip so he's fully hidden while tucked inside.
   if (Math.random() < 0.22) {
@@ -747,31 +940,30 @@ function maybeSpawnPowerup(ob) {
   };
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('class', 'powerup');
-  g.innerHTML = `
-    <!-- soft outer glow halo (pulses) -->
-    <circle r="34" fill="${conf.color}" opacity="0.22">
-      <animate attributeName="r" values="30;40;30" dur="1.6s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0.18;0.32;0.18" dur="1.6s" repeatCount="indefinite"/>
-    </circle>
-    <!-- outer ring (pulses) -->
-    <circle r="27" fill="none" stroke="${conf.color}" stroke-width="2" opacity="0.7">
-      <animate attributeName="r" values="25;30;25" dur="1.2s" repeatCount="indefinite"/>
-    </circle>
-    <!-- body -->
-    <circle r="22" fill="${conf.color}" stroke="${conf.stroke}" stroke-width="3" opacity="0.98"/>
-    <circle r="22" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.55"/>
-    <!-- sparkle rays, rotating slowly -->
-    <g opacity="0.85">
-      <g>
+  if (IS_LOW_POWER) {
+    g.innerHTML = `
+      <circle r="24" fill="${conf.color}" stroke="${conf.stroke}" stroke-width="3" opacity="0.95"/>
+      <circle r="24" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.45"/>
+      ${powerupIconSVG(conf.icon)}
+    `;
+  } else {
+    g.innerHTML = `
+      <circle class="pu-halo" r="34" fill="${conf.color}" opacity="0.22"/>
+      <circle class="pu-ring" r="27" fill="none" stroke="${conf.color}" stroke-width="2" opacity="0.7"/>
+      <circle r="22" fill="${conf.color}" stroke="${conf.stroke}" stroke-width="3" opacity="0.98"/>
+      <circle r="22" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.55"/>
+      <g class="pu-rays" opacity="0.85">
         <line x1="0" y1="-30" x2="0" y2="-24" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
         <line x1="0" y1="30"  x2="0" y2="24"  stroke="#fff" stroke-width="2" stroke-linecap="round"/>
         <line x1="-30" y1="0" x2="-24" y2="0" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
         <line x1="30" y1="0"  x2="24" y2="0"  stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite"/>
       </g>
-    </g>
-    ${powerupIconSVG(conf.icon)}
-  `;
+      ${powerupIconSVG(conf.icon)}
+    `;
+    pu.haloEl = g.querySelector('.pu-halo');
+    pu.ringEl = g.querySelector('.pu-ring');
+    pu.raysEl = g.querySelector('.pu-rays');
+  }
   pu.el = g;
   powerupLayer.appendChild(g);
   state.powerups.push(pu);
@@ -779,6 +971,7 @@ function maybeSpawnPowerup(ob) {
 
 function collectPowerup(pu) {
   pu.collected = true;
+  AudioManager.playSFX('powerup');
   if (pu.kind === 'shield') state.fx.shield = Math.max(state.fx.shield, 1); // 1 hit
   if (pu.kind === 'slow')   state.fx.slowmo = 3200; // ms
   if (pu.kind === 'x2')     state.fx.x2 = 5; // next 5 pipes
@@ -828,12 +1021,9 @@ function sawSVG(r) {
 
 // ===== Player visuals =====
 function applyBallPalette() {
-  // Ball is now the logo badge — palette only drives accent UI + trail color
   const pal = BALL_PALETTES[tweaks.ballPalette] || BALL_PALETTES.coral;
-  const startBtnRect = startHintG.querySelector('g rect');
-  if (startBtnRect) startBtnRect.setAttribute('fill', pal.mid);
-  const overBtn = gameOverG.querySelector('g[transform="translate(270 620)"] rect');
-  if (overBtn) overBtn.setAttribute('fill', pal.mid);
+  const menuStartRect = document.querySelector('#menuStartBtn rect');
+  if (menuStartRect) menuStartRect.setAttribute('fill', pal.mid);
   const finalBestEl = document.getElementById('finalBest');
   if (finalBestEl) finalBestEl.setAttribute('fill', pal.mid);
 }
@@ -1074,13 +1264,13 @@ function renderMedal(score) {
 
 // ===== Core loop =====
 function flap() {
-  if (state.mode === 'start') startGame();
-  if (state.mode === 'over') { resetGame(); return; }
+  if (state.mode === 'menu') return;
+  if (state.mode === 'over') return;
   if (state.mode !== 'play') return;
   state.ball.vy = -tweaks.flap;
-  // trail snapshot
   state.trail.push({ x: state.ball.x, y: state.ball.y, t: performance.now() });
   if (state.trail.length > 6) state.trail.shift();
+  AudioManager.playSFX('flap');
 }
 
 const LOGOS = ['assets/player-logo.png', 'assets/player-logo-2.png'];
@@ -1106,7 +1296,6 @@ function startGame() {
   powerupLayer.innerHTML = '';
   state.fx = { shield: 0, slowmo: 0, x2: 0 };
   updateFXHUD();
-  // Apply Start-at-tier tweak
   const tierStarts = [0, 0, 5, 10, 15, 20];
   state.score = tierStarts[Math.max(1, Math.min(5, tweaks.startTier || 1))];
   state.scrollX = 0;
@@ -1117,47 +1306,111 @@ function startGame() {
   _lastTierShown = -1;
   updateTierHUD(state.score);
   updateSky(state.score);
-  startHintG.setAttribute('opacity', '0');
+  menuG.setAttribute('opacity', '0');
+  menuG.style.pointerEvents = 'none';
   gameOverG.setAttribute('opacity', '0');
+  gameOverG.style.pointerEvents = 'none';
+  document.getElementById('uiLayer').setAttribute('opacity', '1');
   bannerG.innerHTML = '';
+  if (IS_MOBILE && pauseBtn) pauseBtn.style.display = 'flex';
+  AudioManager.init();
+  AudioManager.playSFX('click');
+  AudioManager.playBGM();
   state.lastT = performance.now();
 }
 
 function resetGame() {
   gameOverG.setAttribute('opacity', '0');
+  gameOverG.style.pointerEvents = 'none';
   startGame();
+}
+
+function showMenu() {
+  state.mode = 'menu';
+  obstacleLayer.innerHTML = '';
+  powerupLayer.innerHTML = '';
+  state.obstacles = [];
+  state.powerups = [];
+  state.trail = [];
+  state.ball = { x: BALL_X, y: 480, vy: 0, rot: 0 };
+  state.score = 0;
+  state.fx = { shield: 0, slowmo: 0, x2: 0 };
+  updateFXHUD();
+  _lastTierShown = -1;
+  updateTierHUD(0);
+  updateSky(0);
+  scoreText.textContent = '0';
+
+  gameOverG.setAttribute('opacity', '0');
+  gameOverG.style.pointerEvents = 'none';
+  pauseG.setAttribute('opacity', '0');
+  pauseG.style.pointerEvents = 'none';
+  leaderboardG.setAttribute('opacity', '0');
+  leaderboardG.style.pointerEvents = 'none';
+  settingsG.setAttribute('opacity', '0');
+  settingsG.style.pointerEvents = 'none';
+  menuG.setAttribute('opacity', '1');
+  menuG.style.pointerEvents = 'auto';
+
+  if (pauseBtn) pauseBtn.style.display = 'none';
+  document.getElementById('uiLayer').setAttribute('opacity', '0');
+
+  AudioManager.fadeBGM(AudioManager.getSettings().bgmMuted ? 0 : AudioManager.getSettings().bgmVolume, 400);
 }
 
 function gameOver() {
   if (state.mode !== 'play') return;
   state.mode = 'over';
   state.best = Math.max(state.best, state.score);
+  localStorage.setItem('pipes_best_score', state.best);
   bestText.textContent = state.best;
   finalScore.textContent = state.score;
   finalBest.textContent = state.best;
   renderMedal(state.score);
   gameOverG.setAttribute('opacity', '1');
+  gameOverG.style.pointerEvents = 'auto';
+  if (pauseBtn) pauseBtn.style.display = 'none';
   stage.classList.add('shake');
   setTimeout(() => stage.classList.remove('shake'), 380);
+
+  if (scoreNameInput) {
+    scoreNameInput.value = LeaderboardAPI.getStoredName();
+    scoreNameInput.disabled = false;
+  }
+  const submitText = document.getElementById('goSubmitText');
+  if (submitText) submitText.textContent = 'SUBMIT SCORE';
+  const submitRect = document.querySelector('#goSubmitBtn rect');
+  if (submitRect) submitRect.setAttribute('fill', '#44c4a9');
+
+  AudioManager.playSFX('hit');
+  AudioManager.fadeBGM(0, 500);
 }
 
 function togglePause() {
   if (state.mode === 'play') {
     state.mode = 'pause';
     pauseG.setAttribute('opacity', '1');
+    pauseG.style.pointerEvents = 'auto';
+    const confirmG = document.getElementById('pauseConfirmG');
+    if (confirmG) { confirmG.setAttribute('opacity', '0'); confirmG.style.pointerEvents = 'none'; }
+    if (pauseBtn) pauseBtn.textContent = '▶';
   } else if (state.mode === 'pause') {
     state.mode = 'play';
     pauseG.setAttribute('opacity', '0');
+    pauseG.style.pointerEvents = 'none';
+    if (pauseBtn) pauseBtn.textContent = '⏸';
     state.lastT = performance.now();
   }
 }
 
 function update(dt, now) {
   if (state.mode !== 'play') return;
+  // Normalize to 60fps: on 120Hz screens dt≈8.3, on 60Hz dt≈16.7
+  // This ensures physics behaves identically regardless of refresh rate
+  const step = dt / 16.667;
   const t = tierFor(state.score);
-  // Slow-mo: halve scroll speed while active
   const slowFactor = state.fx.slowmo > 0 ? 0.5 : 1;
-  const speed = t.speed * (tweaks.baseSpeed / 3) * slowFactor;
+  const speed = t.speed * (tweaks.baseSpeed / 3) * slowFactor * step;
   state.scrollX += speed;
 
   // Tick FX timers
@@ -1169,14 +1422,13 @@ function update(dt, now) {
     state.fx.iframes = Math.max(0, state.fx.iframes - dt);
   }
 
-  // ball physics
+  // ball physics (frame-rate independent)
   const b = state.ball;
-  b.vy += tweaks.gravity;
+  b.vy += tweaks.gravity * step;
   if (b.vy > 14) b.vy = 14;
-  b.y += b.vy;
-  // rotation based on vy
+  b.y += b.vy * step;
   const targetRot = Math.max(-25, Math.min(75, b.vy * 6));
-  b.rot += (targetRot - b.rot) * 0.18;
+  b.rot += (targetRot - b.rot) * (1 - Math.pow(1 - 0.18, step));
 
   // spawn
   state.spawnTimer -= dt;
@@ -1190,7 +1442,7 @@ function update(dt, now) {
     const ob = state.obstacles[i];
     ob.x -= speed;
     if (ob.moving) {
-      ob.phase += 0.03;
+      ob.phase += 0.03 * step;
       const dy = Math.sin(ob.phase) * ob.amp;
       ob.gapY = ob.baseGapY + dy;
     }
@@ -1203,11 +1455,13 @@ function update(dt, now) {
       state.score += inc;
       scoreText.textContent = state.score;
       updateTierHUD(state.score);
+      AudioManager.playSFX('score');
       // milestone?
       const m = MILESTONES.find(m => m.at === state.score);
       if (m && !state.shown[m.at]) {
         state.shown[m.at] = true;
         triggerBanner(m);
+        AudioManager.playSFX('milestone');
       }
       updateSky(state.score);
     }
@@ -1215,17 +1469,22 @@ function update(dt, now) {
     // Pesky guy state machine
     if (ob.pesky) {
       const p = ob.pesky;
+      // Update mount position to follow moving pipes
+      if (ob.moving) {
+        p.mountY = ob.gapY + ob.gap;
+        p.wrap.setAttribute('transform', `translate(0 ${p.mountY})`);
+      }
       if (p.state === 'waiting' && ob.x <= p.triggerX) {
         p.state = 'rising';
         p.t = 0;
       }
       if (p.state !== 'waiting' && p.state !== 'done') {
         p.t += dt;
-        let offset = 40; // fully hidden (below mountY, clipped out)
-        const EMERGED = -36; // feet above the pipe lip -> fully visible
+        let offset = 40;
+        const EMERGED = -36;
         if (p.state === 'rising') {
           const k = Math.min(1, p.t / 300);
-          const e = 1 - Math.pow(1 - k, 3); // ease-out cubic
+          const e = 1 - Math.pow(1 - k, 3);
           offset = 40 + e * (EMERGED - 40);
           if (k >= 1) { p.state = 'waving'; p.t = 0; }
         } else if (p.state === 'waving') {
@@ -1257,9 +1516,18 @@ function update(dt, now) {
     const pu = state.powerups[i];
     if (pu.collected) { state.powerups.splice(i, 1); continue; }
     pu.x -= speed;
-    pu.phase += 0.08;
+    pu.phase += 0.08 * step;
     pu.y = pu.baseY + Math.sin(pu.phase) * 10;
     pu.el.setAttribute('transform', `translate(${pu.x} ${pu.y})`);
+    // JS-driven animation for halo/ring/rays (replaces SVG <animate>)
+    if (pu.haloEl) {
+      const p = pu.phase;
+      const hr = 30 + Math.sin(p * 0.6) * 5;
+      pu.haloEl.setAttribute('r', hr);
+      pu.haloEl.setAttribute('opacity', 0.18 + Math.sin(p * 0.6) * 0.07);
+    }
+    if (pu.ringEl) pu.ringEl.setAttribute('r', 25 + Math.sin(pu.phase * 0.8) * 2.5);
+    if (pu.raysEl) pu.raysEl.setAttribute('transform', `rotate(${(pu.phase * 15) % 360})`);
     // Collision with ball
     const dx = pu.x - b.x, dy = pu.y - b.y;
     if (dx * dx + dy * dy < (BALL_R + 22) * (BALL_R + 22)) {
@@ -1272,7 +1540,7 @@ function update(dt, now) {
     }
   }
 
-  // parallax clouds
+  // parallax clouds (speed already has step baked in)
   for (const c of state.clouds) {
     c.x -= 0.3 * speed;
     if (c.x < -60) c.x += W + 120;
@@ -1302,61 +1570,52 @@ function update(dt, now) {
 function render() {
   const b = state.ball;
   ballGroup.setAttribute('transform', `translate(${b.x} ${b.y}) rotate(${b.rot})`);
-  // trail
-  trailLayer.innerHTML = '';
+
+  // Trail: reuse pooled circles instead of innerHTML thrashing
   const now = performance.now();
-  state.trail.forEach((p, i) => {
+  const trailColor = BALL_PALETTES[tweaks.ballPalette]?.mid || '#ff6b5b';
+  let poolIdx = 0;
+  for (let i = 0; i < state.trail.length && poolIdx < TRAIL_POOL_SIZE; i++) {
+    const p = state.trail[i];
     const age = (now - p.t) / 600;
     if (age < 1) {
-      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      const c = trailPool[poolIdx++];
       c.setAttribute('cx', p.x - (state.trail.length - i) * 2);
       c.setAttribute('cy', p.y + (state.trail.length - i) * 2);
       c.setAttribute('r', BALL_R * (1 - age * 0.4));
-      c.setAttribute('fill', BALL_PALETTES[tweaks.ballPalette]?.mid || '#ff6b5b');
+      c.setAttribute('fill', trailColor);
       c.setAttribute('opacity', (1 - age) * 0.25);
-      trailLayer.appendChild(c);
     }
-  });
-  // update saw gap positions for moving pipes
+  }
+  for (let i = poolIdx; i < TRAIL_POOL_SIZE; i++) {
+    trailPool[i].setAttribute('opacity', '0');
+  }
+
+  // Update obstacle positions using cached refs
   for (const ob of state.obstacles) {
     if (ob.moving) {
-      ob.topEl.querySelectorAll('rect').forEach((r, idx) => {
-        if (idx === 0) r.setAttribute('height', Math.max(0, ob.gapY - 20));
-        if (idx === 1) r.setAttribute('y', ob.gapY - 22);
-      });
-      // rebuild bottom pipe rects
-      const botRects = ob.botEl.querySelectorAll('rect');
-      if (botRects[0]) botRects[0].setAttribute('y', ob.gapY + ob.gap);
-      if (botRects[1]) {
-        botRects[1].setAttribute('y', ob.gapY + ob.gap + 22);
-        botRects[1].setAttribute('height', GROUND_Y - (ob.gapY + ob.gap + 22));
+      // Use cached rect references instead of querySelectorAll
+      if (ob._topBody) ob._topBody.setAttribute('height', Math.max(0, ob.gapY - 20));
+      if (ob._topLip) ob._topLip.setAttribute('y', ob.gapY - 22);
+      if (ob._botLip) ob._botLip.setAttribute('y', ob.gapY + ob.gap);
+      if (ob._botBody) {
+        ob._botBody.setAttribute('y', ob.gapY + ob.gap + 22);
+        ob._botBody.setAttribute('height', GROUND_Y - (ob.gapY + ob.gap + 22));
       }
-      // spikes re-position
-      const topSpikes = ob.topEl.querySelector('path');
-      if (topSpikes) {
-        const pipeW = 70;
-        topSpikes.setAttribute('d', spikesPath(pipeW, ob.gapY - 2, 'down'));
-      }
-      const botSpikes = ob.botEl.querySelector('path');
-      if (botSpikes) {
-        const pipeW = 70;
-        botSpikes.setAttribute('d', spikesPath(pipeW, ob.gapY + ob.gap + 2, 'up'));
-      }
+      if (ob._topSpikes) ob._topSpikes.setAttribute('d', spikesPath(70, ob.gapY - 2, 'down'));
+      if (ob._botSpikes) ob._botSpikes.setAttribute('d', spikesPath(70, ob.gapY + ob.gap + 2, 'up'));
       if (ob.sawEl) ob.sawEl.setAttribute('transform', `translate(0 ${ob.gapY + ob.gap/2})`);
     }
     ob.el.setAttribute('transform', `translate(${ob.x} 0)`);
   }
 
-  // Debug hitbox overlay
+  // Debug hitbox overlay (only when enabled)
   if (tweaks.showHitboxes) drawHitboxes();
-  else {
-    const layer = document.getElementById('hitboxLayer');
-    if (layer && layer.firstChild) layer.innerHTML = '';
-  }
+  else if (hitboxLayer.firstChild) hitboxLayer.innerHTML = '';
 }
 
 function drawHitboxes() {
-  const layer = document.getElementById('hitboxLayer');
+  const layer = hitboxLayer;
   if (!layer) return;
   const pipeW = 70;
   const HIT_INSET = 5;
@@ -1420,20 +1679,12 @@ function spikesPath(pipeW, y, dir) {
   return path;
 }
 
-// static obstacles still need transform on their root
-function renderStatic() {
-  for (const ob of state.obstacles) {
-    if (!ob.moving) ob.el.setAttribute('transform', `translate(${ob.x} 0)`);
-  }
-}
-
 function loop(now) {
   const dt = Math.min(50, now - state.lastT);
   state.lastT = now;
   state.time = now;
   update(dt, now);
   render();
-  renderStatic();
   requestAnimationFrame(loop);
 }
 
@@ -1441,23 +1692,337 @@ function loop(now) {
 function onKey(e) {
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.key === ' ' || e.key === 'Spacebar') {
     e.preventDefault();
-    // If a range slider has focus, Space would otherwise nudge it — blur first.
-    if (document.activeElement && document.activeElement.tagName === 'INPUT') {
-      document.activeElement.blur();
-    }
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
     flap();
-  } else if (e.code === 'KeyR') {
-    if (state.mode === 'over' || state.mode === 'play' || state.mode === 'pause') {
-      startGame();
-    }
   } else if (e.code === 'KeyP') {
-    togglePause();
+    if (state.mode === 'play' || state.mode === 'pause') togglePause();
+  } else if (e.code === 'Escape') {
+    if (state.mode === 'pause') togglePause();
   }
 }
 window.addEventListener('keydown', onKey);
 stage.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('#pauseBtn')) return;
+  if (e.target.closest('#menuG')) return;
+  if (e.target.closest('#gameOverG')) return;
+  if (e.target.closest('#pauseG')) return;
+  if (e.target.closest('#leaderboardG')) return;
+  if (e.target.closest('#settingsG')) return;
+  e.preventDefault();
   stage.focus();
-  flap();
+  if (state.mode === 'play') flap();
+});
+
+// Mobile pause button
+const pauseBtn = document.getElementById('pauseBtn');
+if (pauseBtn) {
+  pauseBtn.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    togglePause();
+  });
+}
+
+// ===== Menu button handlers =====
+document.getElementById('menuStartBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.init();
+  startGame();
+});
+
+document.getElementById('menuLeaderBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.init();
+  AudioManager.playSFX('click');
+  showLeaderboard();
+});
+
+document.getElementById('menuSettingsBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.init();
+  AudioManager.playSFX('click');
+  showSettings();
+});
+
+// Game over buttons
+document.getElementById('goSubmitBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  submitScore();
+});
+
+document.getElementById('goRetryBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.playSFX('click');
+  gameOverG.setAttribute('opacity', '0');
+  gameOverG.style.pointerEvents = 'none';
+  startGame();
+});
+
+document.getElementById('goMenuBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.playSFX('click');
+  showMenu();
+});
+
+// Pause buttons
+document.getElementById('pauseResumeBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.playSFX('click');
+  togglePause();
+});
+
+document.getElementById('pauseMenuBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.playSFX('click');
+  const confirmG = document.getElementById('pauseConfirmG');
+  if (confirmG) { confirmG.setAttribute('opacity', '1'); confirmG.style.pointerEvents = 'auto'; }
+});
+
+document.getElementById('pauseConfirmYes')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.playSFX('click');
+  pauseG.setAttribute('opacity', '0');
+  pauseG.style.pointerEvents = 'none';
+  showMenu();
+});
+
+document.getElementById('pauseConfirmNo')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.playSFX('click');
+  const confirmG = document.getElementById('pauseConfirmG');
+  if (confirmG) { confirmG.setAttribute('opacity', '0'); confirmG.style.pointerEvents = 'none'; }
+});
+
+// ===== Leaderboard screen =====
+let lbActiveTab = 'global';
+
+function showLeaderboard() {
+  menuG.setAttribute('opacity', '0');
+  menuG.style.pointerEvents = 'none';
+  leaderboardG.setAttribute('opacity', '1');
+  leaderboardG.style.pointerEvents = 'auto';
+  lbActiveTab = 'global';
+  updateLBTabs();
+  loadLeaderboardData();
+}
+
+function updateLBTabs() {
+  const globalRect = document.querySelector('#lbTabGlobal rect');
+  const globalText = document.querySelector('#lbTabGlobal text');
+  const mineRect = document.querySelector('#lbTabMine rect');
+  const mineText = document.querySelector('#lbTabMine text');
+  if (lbActiveTab === 'global') {
+    globalRect.setAttribute('fill', '#ff6b5b');
+    globalText.setAttribute('fill', '#fff');
+    mineRect.setAttribute('fill', '#cdd1dc');
+    mineText.setAttribute('fill', '#2a1a10');
+  } else {
+    globalRect.setAttribute('fill', '#cdd1dc');
+    globalText.setAttribute('fill', '#2a1a10');
+    mineRect.setAttribute('fill', '#ff6b5b');
+    mineText.setAttribute('fill', '#fff');
+  }
+}
+
+async function loadLeaderboardData() {
+  const rows = document.getElementById('lbRows');
+  const status = document.getElementById('lbStatus');
+  rows.innerHTML = '';
+  status.setAttribute('opacity', '1');
+  status.textContent = 'Loading...';
+
+  try {
+    let data;
+    if (lbActiveTab === 'global') {
+      data = await LeaderboardAPI.getTopScores(10);
+    } else {
+      const name = LeaderboardAPI.getStoredName();
+      if (!name) {
+        status.textContent = 'Play a game and submit your score first!';
+        return;
+      }
+      data = await LeaderboardAPI.getPlayerScores(name, 10);
+    }
+
+    status.setAttribute('opacity', '0');
+    if (data.length === 0) {
+      status.setAttribute('opacity', '1');
+      status.textContent = 'No scores yet!';
+      return;
+    }
+
+    data.forEach((entry, i) => {
+      const y = i * 48;
+      const rank = entry.rank || (i + 1);
+      const name = entry.name || LeaderboardAPI.getStoredName();
+      const date = new Date(entry.created_at);
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const bg = i % 2 === 0 ? '#f5f0e0' : '#fffbef';
+      rows.innerHTML += `
+        <g transform="translate(0 ${y})">
+          <rect x="80" y="0" width="380" height="44" rx="8" fill="${bg}"/>
+          <text x="100" y="28" font-family="Rubik" font-weight="900" font-size="16" fill="#6e7486">#${rank}</text>
+          ${lbActiveTab === 'global' ? `<text x="150" y="28" font-family="Rubik" font-weight="700" font-size="15" fill="#2a1a10">${name.length > 12 ? name.slice(0, 12) + '...' : name}</text>` : ''}
+          <text x="380" y="28" text-anchor="end" font-family="Rubik" font-weight="900" font-size="18" fill="#ff6b5b">${entry.score}</text>
+          <text x="440" y="28" text-anchor="end" font-family="Rubik" font-weight="500" font-size="11" fill="#9aa0ae">${dateStr}</text>
+        </g>
+      `;
+    });
+  } catch (err) {
+    status.textContent = 'Could not load scores';
+  }
+}
+
+document.getElementById('lbTabGlobal')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  if (lbActiveTab === 'global') return;
+  AudioManager.playSFX('click');
+  lbActiveTab = 'global';
+  updateLBTabs();
+  loadLeaderboardData();
+});
+
+document.getElementById('lbTabMine')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  if (lbActiveTab === 'mine') return;
+  AudioManager.playSFX('click');
+  lbActiveTab = 'mine';
+  updateLBTabs();
+  loadLeaderboardData();
+});
+
+document.getElementById('lbBackBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.playSFX('click');
+  leaderboardG.setAttribute('opacity', '0');
+  leaderboardG.style.pointerEvents = 'none';
+  menuG.setAttribute('opacity', '1');
+  menuG.style.pointerEvents = 'auto';
+});
+
+async function submitScore() {
+  const input = document.getElementById('scoreNameInput');
+  const submitText = document.getElementById('goSubmitText');
+  const submitRect = document.querySelector('#goSubmitBtn rect');
+  if (!input || !submitText) return;
+
+  const name = input.value.trim();
+  if (!name || name.length > 20) {
+    input.style.borderColor = '#ff4a4a';
+    setTimeout(() => input.style.borderColor = '#cdd1dc', 800);
+    return;
+  }
+
+  submitText.textContent = 'SUBMITTING...';
+  input.disabled = true;
+
+  const result = await LeaderboardAPI.submitScore(name, state.score);
+
+  if (result.offline) {
+    submitText.textContent = 'SAVED LOCALLY';
+  } else {
+    submitText.textContent = result.rank ? `RANK #${result.rank}` : 'SUBMITTED';
+  }
+  submitRect.setAttribute('fill', '#6e7486');
+  AudioManager.playSFX('submit');
+}
+
+// ===== Settings screen =====
+function showSettings() {
+  menuG.setAttribute('opacity', '0');
+  menuG.style.pointerEvents = 'none';
+  settingsG.setAttribute('opacity', '1');
+  settingsG.style.pointerEvents = 'auto';
+  syncSettingsUI();
+}
+
+function syncSettingsUI() {
+  const s = AudioManager.getSettings();
+  const bgmFill = document.getElementById('bgmFill');
+  const bgmKnob = document.getElementById('bgmKnob');
+  const sfxFill = document.getElementById('sfxFill');
+  const sfxKnob = document.getElementById('sfxKnob');
+  const bgmMuteText = document.getElementById('bgmMuteText');
+  const sfxMuteText = document.getElementById('sfxMuteText');
+  const bgmMuteRect = document.querySelector('#bgmMuteBtn rect');
+  const sfxMuteRect = document.querySelector('#sfxMuteBtn rect');
+
+  const sliderW = 310;
+  const sliderX = 120;
+
+  if (bgmFill) bgmFill.setAttribute('width', s.bgmVolume * sliderW);
+  if (bgmKnob) bgmKnob.setAttribute('cx', sliderX + s.bgmVolume * sliderW);
+  if (sfxFill) sfxFill.setAttribute('width', s.sfxVolume * sliderW);
+  if (sfxKnob) sfxKnob.setAttribute('cx', sliderX + s.sfxVolume * sliderW);
+
+  if (bgmMuteText) bgmMuteText.textContent = s.bgmMuted ? 'OFF' : 'ON';
+  if (bgmMuteRect) bgmMuteRect.setAttribute('fill', s.bgmMuted ? '#6e7486' : '#44c4a9');
+  if (sfxMuteText) sfxMuteText.textContent = s.sfxMuted ? 'OFF' : 'ON';
+  if (sfxMuteRect) sfxMuteRect.setAttribute('fill', s.sfxMuted ? '#6e7486' : '#4aa8e8');
+}
+
+function setupSliderDrag(knobId, fillId, y, onChange) {
+  const knob = document.getElementById(knobId);
+  const fill = document.getElementById(fillId);
+  if (!knob) return;
+
+  const sliderX = 120, sliderW = 310;
+  let dragging = false;
+
+  function getVal(clientX) {
+    const svgRect = world.getBoundingClientRect();
+    const svgX = (clientX - svgRect.left) / svgRect.width * 540;
+    return Math.max(0, Math.min(1, (svgX - sliderX) / sliderW));
+  }
+
+  function updateSlider(clientX) {
+    const v = getVal(clientX);
+    knob.setAttribute('cx', sliderX + v * sliderW);
+    if (fill) fill.setAttribute('width', v * sliderW);
+    onChange(v);
+  }
+
+  knob.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    dragging = true;
+    knob.setPointerCapture(e.pointerId);
+  });
+
+  knob.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    e.stopPropagation();
+    updateSlider(e.clientX);
+  });
+
+  knob.addEventListener('pointerup', (e) => {
+    dragging = false;
+  });
+}
+
+setupSliderDrag('bgmKnob', 'bgmFill', 404, (v) => AudioManager.setBGMVolume(v));
+setupSliderDrag('sfxKnob', 'sfxFill', 489, (v) => AudioManager.setSFXVolume(v));
+
+document.getElementById('bgmMuteBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.toggleBGMMute();
+  syncSettingsUI();
+  AudioManager.playSFX('click');
+});
+
+document.getElementById('sfxMuteBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.toggleSFXMute();
+  syncSettingsUI();
+  AudioManager.playSFX('click');
+});
+
+document.getElementById('settingsBackBtn')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  AudioManager.playSFX('click');
+  settingsG.setAttribute('opacity', '0');
+  settingsG.style.pointerEvents = 'none';
+  menuG.setAttribute('opacity', '1');
+  menuG.style.pointerEvents = 'auto';
 });
 
 // ===== Tweak bindings =====
@@ -1493,12 +2058,9 @@ function bindTweaks() {
       const v = hb.checked;
       hbv.textContent = v ? 'on' : 'off';
       persistTweak('showHitboxes', v);
-      const layer = document.getElementById('hitboxLayer');
-      if (layer) layer.setAttribute('opacity', v ? '1' : '0');
+      if (hitboxLayer) hitboxLayer.setAttribute('opacity', v ? '1' : '0');
     });
-    // Initial apply
-    const layer = document.getElementById('hitboxLayer');
-    if (layer) layer.setAttribute('opacity', tweaks.showHitboxes ? '1' : '0');
+    if (hitboxLayer) hitboxLayer.setAttribute('opacity', tweaks.showHitboxes ? '1' : '0');
   }
 
   const pal = document.getElementById('tw-ball-pal');
@@ -1520,10 +2082,17 @@ function bindTweaks() {
 // ===== Boot =====
 function boot() {
   applyBallPalette();
+  initTrailPool();
   initClouds();
   initHills();
   updateSky(0);
   bindTweaks();
+  bestText.textContent = state.best;
+  if (IS_MOBILE) {
+    const controls = document.getElementById('controls');
+    if (controls) controls.style.display = 'none';
+  }
+  showMenu();
   state.lastT = performance.now();
   requestAnimationFrame(loop);
   stage.focus();

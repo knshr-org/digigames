@@ -1,0 +1,14 @@
+{
+  "name": "pipes-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "mysql2": "^3.11.0",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.4.0"
+  }
+}
