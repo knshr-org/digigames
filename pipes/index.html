@@ -596,10 +596,10 @@ state.best = parseInt(localStorage.getItem('pipes_best_score')) || 0;
 
 // ===== Tier config =====
 function tierFor(score) {
-  if (score < 5)  return { id: 1, speed: 3,   interval: 1600, gap: 170, color: 'url(#pipeGrad)',  moving: false, spikes: false, saw: false };
-  if (score < 10) return { id: 2, speed: 4,   interval: 1400, gap: 145, color: 'url(#pipeGrad2)', moving: false, spikes: false, saw: false };
-  if (score < 15) return { id: 3, speed: 5,   interval: 1250, gap: 135, color: 'url(#pipeGrad)',  moving: true,  spikes: false, saw: false };
-  if (score < 20) return { id: 4, speed: 6,   interval: 1100, gap: 125, color: 'url(#pipeGrad2)', moving: true,  spikes: true,  saw: false };
+  if (score < 20) return { id: 1, speed: 3,   interval: 1600, gap: 170, color: 'url(#pipeGrad)',  moving: false, spikes: false, saw: false };
+  if (score < 40) return { id: 2, speed: 4,   interval: 1400, gap: 145, color: 'url(#pipeGrad2)', moving: false, spikes: false, saw: false };
+  if (score < 60) return { id: 3, speed: 5,   interval: 1250, gap: 135, color: 'url(#pipeGrad)',  moving: true,  spikes: false, saw: false };
+  if (score < 80) return { id: 4, speed: 6,   interval: 1100, gap: 125, color: 'url(#pipeGrad2)', moving: true,  spikes: true,  saw: false };
   return             { id: 5, speed: 7,   interval: 950,  gap: 120, color: 'url(#pipeGrad3)', moving: true,  spikes: true,  saw: true  };
 }
 
