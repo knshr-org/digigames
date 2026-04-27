@@ -2,6 +2,7 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const { runMigrations } = require('./migrate');
 
 const app = express();
 app.use(cors());
@@ -18,18 +19,7 @@ const pool = mysql.createPool({
 });
 
 async function initDB() {
-  const conn = await pool.getConnection();
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS scores (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(20) NOT NULL,
-      score INT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_score (score DESC),
-      INDEX idx_name_score (name, score DESC)
-    )
-  `);
-  conn.release();
+  await runMigrations(pool);
 }
 
 const submitLimiter = rateLimit({

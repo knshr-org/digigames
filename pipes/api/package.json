@@ -6,7 +6,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "migrate": "node migrate.js up",
+    "migrate:status": "node migrate.js status"
   },
   "dependencies": {
     "express": "^4.21.0",
