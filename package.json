@@ -1,0 +1,15 @@
+{
+  "name": "digigames",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "install:api": "cd pipes/api && npm install",
+    "start": "cd pipes/api && npm start",
+    "migrate": "cd pipes/api && npm run migrate",
+    "migrate:status": "cd pipes/api && npm run migrate:status",
+    "postinstall": "cd pipes/api && npm install"
+  }
+}
