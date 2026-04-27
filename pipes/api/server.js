@@ -44,8 +44,8 @@ app.post('/api/scores', submitLimiter, async (req, res) => {
     if (!name || typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 20) {
       return res.status(400).json({ error: 'Name must be 1-20 characters' });
     }
-    if (!Number.isInteger(score) || score < 1) {
-      return res.status(400).json({ error: 'Score must be a positive integer' });
+    if (!Number.isInteger(score) || score < 0) {
+      return res.status(400).json({ error: 'Score must be a non-negative integer' });
     }
     const cleanName = name.trim();
     const [result] = await pool.query('INSERT INTO scores (name, score) VALUES (?, ?)', [cleanName, score]);
