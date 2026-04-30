@@ -50,8 +50,13 @@ const LeaderboardAPI = (() => {
     } catch (err) {
       console.warn('Failed to fetch top scores, using local:', err);
       const local = getLocalScores();
-      local.sort((a, b) => b.score - a.score);
-      return local.slice(0, limit).map((s, i) => ({ rank: i + 1, ...s }));
+      const latestByName = new Map();
+      for (const s of local) {
+        latestByName.set(s.name, s);
+      }
+      const deduped = [...latestByName.values()];
+      deduped.sort((a, b) => b.score - a.score);
+      return deduped.slice(0, limit).map((s, i) => ({ rank: i + 1, ...s }));
     }
   }
 

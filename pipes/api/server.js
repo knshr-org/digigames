@@ -62,7 +62,13 @@ app.get('/api/scores/top', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50);
     const [rows] = await pool.query(
-      'SELECT name, score, created_at FROM scores ORDER BY score DESC, created_at ASC LIMIT ?',
+      `SELECT s.name, s.score, s.created_at
+       FROM scores s
+       INNER JOIN (
+         SELECT name, MAX(id) AS latest_id FROM scores GROUP BY name
+       ) latest ON s.id = latest.latest_id
+       ORDER BY s.score DESC, s.created_at ASC
+       LIMIT ?`,
       [limit]
     );
     const ranked = rows.map((r, i) => ({ rank: i + 1, ...r }));
