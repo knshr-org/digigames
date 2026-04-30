@@ -17,7 +17,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const STATIC_ROOT = path.join(__dirname, '..', '..');
+const STATIC_ROOT = path.join(__dirname, '..');
 app.use(express.static(STATIC_ROOT));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'digigames-dev-secret-change-in-prod';
