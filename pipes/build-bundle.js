@@ -6,12 +6,13 @@ const PIPES_DIR = __dirname;
 let indexHtml = fs.readFileSync(path.join(PIPES_DIR, 'index.html'), 'utf-8');
 const audioJs = fs.readFileSync(path.join(PIPES_DIR, 'js', 'audio.js'), 'utf-8');
 const leaderboardJs = fs.readFileSync(path.join(PIPES_DIR, 'js', 'leaderboard.js'), 'utf-8');
+const authJs = fs.readFileSync(path.join(PIPES_DIR, '..', 'js', 'auth.js'), 'utf-8');
 const pipesHtml = fs.readFileSync(path.join(PIPES_DIR, 'pipes.html'), 'utf-8');
 
 // 1. Inline audio.js and leaderboard.js
 indexHtml = indexHtml.replace(
-  '<script src="js/audio.js"></script>\n<script src="js/leaderboard.js"></script>',
-  `<script>\n${audioJs}\n${leaderboardJs}\n</script>`
+  '<script src="../js/auth.js"></script>\n<script src="js/audio.js"></script>\n<script src="js/leaderboard.js"></script>',
+  `<script>\n${authJs}\n${audioJs}\n${leaderboardJs}\n</script>`
 );
 
 // 2. Replace Google Fonts <link> tags with UUID-based @font-face

@@ -521,6 +521,7 @@
   <div class="hint">Live preview — settings stick.</div>
 </div>
 
+<script src="../js/auth.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/leaderboard.js"></script>
 
@@ -1376,7 +1377,11 @@ function gameOver() {
 
   if (scoreNameInput) {
     scoreNameInput.value = LeaderboardAPI.getStoredName();
-    scoreNameInput.disabled = false;
+    if (LeaderboardAPI.isLoggedIn()) {
+      scoreNameInput.disabled = true;
+    } else {
+      scoreNameInput.disabled = false;
+    }
   }
   const submitText = document.getElementById('goSubmitText');
   if (submitText) submitText.textContent = 'SUBMIT SCORE';

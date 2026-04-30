@@ -82,6 +82,123 @@
     #dpad { display: block; }
     #msg { display: none; }
   }
+  #snake-lb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,0.85);
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  #snake-lb-overlay.active { display: flex; }
+  .lb-panel {
+    background: #12121c;
+    border: 1px solid #1a1a2e;
+    border-radius: 16px;
+    padding: 24px 20px;
+    width: min(380px, 92vw);
+    max-height: 80vh;
+    overflow-y: auto;
+    color: #eee;
+  }
+  .lb-panel h3 {
+    text-align: center;
+    font-size: 0.9rem;
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+    color: #ddd;
+  }
+  .lb-panel .lb-score-display {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #4CAF50;
+    margin-bottom: 16px;
+  }
+  .lb-panel .lb-name-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .lb-panel input {
+    flex: 1;
+    padding: 8px 12px;
+    background: #0a0a0f;
+    border: 1px solid #1a1a2e;
+    border-radius: 8px;
+    color: #eee;
+    font-family: inherit;
+    font-size: 0.8rem;
+    outline: none;
+  }
+  .lb-panel input:focus { border-color: #333; }
+  .lb-panel .lb-submit-btn {
+    padding: 8px 16px;
+    background: #4CAF50;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+  }
+  .lb-panel .lb-submit-btn:disabled { opacity: 0.5; }
+  .lb-panel .lb-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .lb-panel .lb-tab {
+    flex: 1;
+    padding: 6px;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    border: 1px solid #1a1a2e;
+    border-radius: 6px;
+    background: none;
+    color: #666;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .lb-panel .lb-tab.active {
+    background: rgba(76,175,80,0.15);
+    color: #4CAF50;
+    border-color: rgba(76,175,80,0.3);
+  }
+  .lb-panel .lb-list { list-style: none; padding: 0; margin: 0; }
+  .lb-panel .lb-list li {
+    display: flex;
+    align-items: center;
+    padding: 6px 4px;
+    font-size: 0.75rem;
+    border-bottom: 1px solid #1a1a2e;
+    gap: 8px;
+  }
+  .lb-panel .lb-rank { width: 24px; color: #555; font-weight: 700; }
+  .lb-panel .lb-name-col { flex: 1; color: #ccc; }
+  .lb-panel .lb-score-col { color: #4CAF50; font-weight: 700; }
+  .lb-panel .lb-date-col { color: #444; font-size: 0.65rem; }
+  .lb-panel .lb-close-btn {
+    display: block;
+    margin: 16px auto 0;
+    padding: 10px 32px;
+    background: none;
+    border: 1px solid #1a1a2e;
+    border-radius: 8px;
+    color: #888;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    cursor: pointer;
+  }
+  .lb-panel .lb-close-btn:hover { color: #ddd; border-color: #333; }
 </style>
 </head>
 <body>
@@ -101,6 +218,23 @@
   <p id="ol-sub">Eat the logos &middot; don't hit yourself</p>
   <button id="ol-btn">PLAY</button>
 </div>
+<div id="snake-lb-overlay">
+  <div class="lb-panel">
+    <h3>GAME OVER</h3>
+    <div class="lb-score-display" id="snakeLbScore">0</div>
+    <div class="lb-name-row" id="snakeLbNameRow">
+      <input id="snakeLbName" type="text" maxlength="20" placeholder="Your name">
+      <button class="lb-submit-btn" id="snakeLbSubmit">SUBMIT</button>
+    </div>
+    <div class="lb-tabs">
+      <button class="lb-tab active" id="snakeLbGlobal">GLOBAL</button>
+      <button class="lb-tab" id="snakeLbMine">MY SCORES</button>
+    </div>
+    <ul class="lb-list" id="snakeLbList"></ul>
+    <button class="lb-close-btn" id="snakeLbClose">PLAY AGAIN</button>
+  </div>
+</div>
+<script src="js/auth.js"></script>
 <script>
 const COLS = 20, ROWS = 18, CELL = 32;
 const canvas = document.getElementById('c');
@@ -328,10 +462,7 @@ function startGame() {
 function endGame() {
   running = false;
   clearInterval(timer);
-  olTitle.textContent = 'GAME OVER';
-  olSub.textContent   = 'Score: ' + score;
-  olBtn.textContent   = 'RETRY';
-  overlay.style.display = 'flex';
+  snakeShowLeaderboard(score);
 }
 
 olBtn.addEventListener('click', startGame);
@@ -385,6 +516,139 @@ document.addEventListener('touchmove', function(e) {
     setDir(dy > 0 ? {x:0,y:1} : {x:0,y:-1});
   }
 }, {passive: true});
+
+// ===== Snake Leaderboard =====
+var SNAKE_API_BASE = (function() {
+  var p = new URLSearchParams(window.location.search);
+  return p.get('api') || window.DIGIGAMES_API_BASE || '';
+})();
+var SNAKE_GAME_ID = 'snake';
+var SNAKE_LS_NAME = 'snake_player_name';
+
+var snakeLbOverlay = document.getElementById('snake-lb-overlay');
+var snakeLbScore = document.getElementById('snakeLbScore');
+var snakeLbName = document.getElementById('snakeLbName');
+var snakeLbSubmit = document.getElementById('snakeLbSubmit');
+var snakeLbList = document.getElementById('snakeLbList');
+var snakeLbNameRow = document.getElementById('snakeLbNameRow');
+var snakeLbClose = document.getElementById('snakeLbClose');
+var snakeLbGlobal = document.getElementById('snakeLbGlobal');
+var snakeLbMine = document.getElementById('snakeLbMine');
+var snakeLbTab = 'global';
+var snakeLastScore = 0;
+
+function snakeGetName() {
+  if (typeof DigiAuth !== 'undefined' && DigiAuth.isLoggedIn()) {
+    return DigiAuth.getUser()?.name || '';
+  }
+  return localStorage.getItem(SNAKE_LS_NAME) || '';
+}
+
+function snakeShowLeaderboard(finalScore) {
+  snakeLastScore = finalScore;
+  snakeLbScore.textContent = finalScore;
+  var loggedIn = typeof DigiAuth !== 'undefined' && DigiAuth.isLoggedIn();
+  snakeLbName.value = snakeGetName();
+  snakeLbName.disabled = loggedIn;
+  snakeLbSubmit.disabled = false;
+  snakeLbSubmit.textContent = 'SUBMIT';
+  snakeLbTab = 'global';
+  snakeLbGlobal.classList.add('active');
+  snakeLbMine.classList.remove('active');
+  snakeLoadScores();
+  snakeLbOverlay.classList.add('active');
+}
+
+async function snakeSubmitScore() {
+  var name = snakeLbName.value.trim();
+  if (!name || name.length > 20) {
+    snakeLbName.style.borderColor = '#ff4a4a';
+    setTimeout(function() { snakeLbName.style.borderColor = '#1a1a2e'; }, 800);
+    return;
+  }
+  localStorage.setItem(SNAKE_LS_NAME, name);
+  snakeLbSubmit.disabled = true;
+  snakeLbSubmit.textContent = '...';
+  try {
+    var headers = { 'Content-Type': 'application/json' };
+    if (typeof DigiAuth !== 'undefined') {
+      var ah = DigiAuth.authHeaders();
+      for (var k in ah) headers[k] = ah[k];
+    }
+    var res = await fetch(SNAKE_API_BASE + '/api/scores', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ name: name, score: snakeLastScore, game_id: SNAKE_GAME_ID }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    snakeLbSubmit.textContent = data.rank ? 'RANK #' + data.rank : 'DONE';
+  } catch (err) {
+    snakeLbSubmit.textContent = 'SAVED';
+  }
+  snakeLoadScores();
+}
+
+async function snakeLoadScores() {
+  snakeLbList.innerHTML = '<li style="justify-content:center;color:#555">Loading...</li>';
+  try {
+    var url;
+    var headers = {};
+    if (snakeLbTab === 'global') {
+      url = SNAKE_API_BASE + '/api/scores/top?limit=10&game_id=' + SNAKE_GAME_ID;
+    } else {
+      if (typeof DigiAuth !== 'undefined') {
+        var ah = DigiAuth.authHeaders();
+        for (var k in ah) headers[k] = ah[k];
+      }
+      var name = snakeGetName();
+      url = SNAKE_API_BASE + '/api/scores/player?game_id=' + SNAKE_GAME_ID + '&name=' + encodeURIComponent(name) + '&limit=10';
+    }
+    var res = await fetch(url, { headers: headers });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var rows = await res.json();
+    snakeRenderScores(rows);
+  } catch (err) {
+    snakeLbList.innerHTML = '<li style="justify-content:center;color:#555">Could not load scores</li>';
+  }
+}
+
+function snakeRenderScores(rows) {
+  if (!rows.length) {
+    snakeLbList.innerHTML = '<li style="justify-content:center;color:#555">No scores yet</li>';
+    return;
+  }
+  snakeLbList.innerHTML = '';
+  rows.forEach(function(r, i) {
+    var li = document.createElement('li');
+    var rank = r.rank || (i + 1);
+    var d = r.created_at ? new Date(r.created_at) : null;
+    var dateStr = d ? (d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : '';
+    li.innerHTML = '<span class="lb-rank">#' + rank + '</span>'
+      + '<span class="lb-name-col">' + (r.name || snakeGetName()) + '</span>'
+      + '<span class="lb-score-col">' + r.score + '</span>'
+      + '<span class="lb-date-col">' + dateStr + '</span>';
+    snakeLbList.appendChild(li);
+  });
+}
+
+snakeLbSubmit.addEventListener('click', snakeSubmitScore);
+snakeLbClose.addEventListener('click', function() {
+  snakeLbOverlay.classList.remove('active');
+  startGame();
+});
+snakeLbGlobal.addEventListener('click', function() {
+  snakeLbTab = 'global';
+  snakeLbGlobal.classList.add('active');
+  snakeLbMine.classList.remove('active');
+  snakeLoadScores();
+});
+snakeLbMine.addEventListener('click', function() {
+  snakeLbTab = 'mine';
+  snakeLbMine.classList.add('active');
+  snakeLbGlobal.classList.remove('active');
+  snakeLoadScores();
+});
 </script>
 </body>
 </html>

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
 
-const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
+const MIGRATIONS_DIR = path.join(__dirname, '..', '..', 'migrations');
 
 async function getPool() {
   return mysql.createPool({

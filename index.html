@@ -302,9 +302,152 @@
     animation: spin 0.7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== Auth UI ===== */
+  #authArea {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 50;
+  }
+  #authArea .auth-user {
+    font-size: 0.7rem;
+    color: #888;
+    letter-spacing: 1px;
+  }
+  #authArea button {
+    background: none;
+    border: 1px solid #1a1a2e;
+    border-radius: 8px;
+    color: #888;
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  #authArea button:hover {
+    color: #ddd;
+    border-color: #333;
+  }
+
+  #authModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.7);
+    align-items: center;
+    justify-content: center;
+  }
+  #authModal.active { display: flex; }
+  #authModal .modal {
+    background: #12121c;
+    border: 1px solid #1a1a2e;
+    border-radius: 16px;
+    padding: 32px 28px;
+    width: min(360px, 90vw);
+  }
+  #authModal h3 {
+    font-size: 0.9rem;
+    letter-spacing: 3px;
+    color: #ddd;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  #authModal input {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    background: #0a0a0f;
+    border: 1px solid #1a1a2e;
+    border-radius: 8px;
+    color: #eee;
+    font-family: inherit;
+    font-size: 0.8rem;
+    outline: none;
+  }
+  #authModal input:focus { border-color: #333; }
+  #authModal .modal-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  #authModal .modal-btns button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    border: 1px solid #1a1a2e;
+    transition: all 0.2s;
+  }
+  #authModal .btn-primary {
+    background: linear-gradient(135deg, #ff6b5b, #ffd66b);
+    color: #0a0a0f;
+    border: none;
+  }
+  #authModal .btn-secondary {
+    background: none;
+    color: #888;
+  }
+  #authModal .btn-secondary:hover { color: #ddd; border-color: #333; }
+  #authModal .auth-error {
+    color: #ff4a4a;
+    font-size: 0.7rem;
+    text-align: center;
+    margin-top: 8px;
+    min-height: 1em;
+  }
+  #authModal .auth-switch {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 0.65rem;
+    color: #555;
+  }
+  #authModal .auth-switch a {
+    color: #888;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  #authModal .auth-switch a:hover { color: #ddd; }
 </style>
 </head>
 <body>
+
+<div id="authArea">
+  <span class="auth-user" id="authUserDisplay"></span>
+  <button id="authLoginBtn">LOGIN</button>
+  <button id="authLogoutBtn" style="display:none">LOGOUT</button>
+</div>
+
+<div id="authModal">
+  <div class="modal">
+    <h3 id="authModalTitle">LOGIN</h3>
+    <div id="registerFields" style="display:none">
+      <input id="authName" type="text" placeholder="Display Name" maxlength="50" autocomplete="name">
+    </div>
+    <input id="authUsername" type="text" placeholder="Username" maxlength="30" autocomplete="username">
+    <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+    <div class="auth-error" id="authError"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" id="authCancelBtn">CANCEL</button>
+      <button class="btn-primary" id="authSubmitBtn">LOGIN</button>
+    </div>
+    <div class="auth-switch" id="authSwitch">
+      No account? <a id="authSwitchLink">Register</a>
+    </div>
+  </div>
+</div>
 
 <!-- ===== Menu screen ===== -->
 <div id="menuView">
@@ -351,6 +494,7 @@
   <iframe id="gameFrame" allowfullscreen></iframe>
 </div>
 
+<script src="js/auth.js"></script>
 <script>
 const ROUTES = {
   snake: { src: 'snake-merge.html', title: 'SNAKE' },
@@ -398,6 +542,114 @@ document.getElementById('backBtn').addEventListener('click', () => {
 });
 
 navigate();
+
+// ===== Auth UI =====
+const authArea = document.getElementById('authArea');
+const authUserDisplay = document.getElementById('authUserDisplay');
+const authLoginBtn = document.getElementById('authLoginBtn');
+const authLogoutBtn = document.getElementById('authLogoutBtn');
+const authModal = document.getElementById('authModal');
+const authModalTitle = document.getElementById('authModalTitle');
+const registerFields = document.getElementById('registerFields');
+const authName = document.getElementById('authName');
+const authUsername = document.getElementById('authUsername');
+const authPassword = document.getElementById('authPassword');
+const authError = document.getElementById('authError');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const authCancelBtn = document.getElementById('authCancelBtn');
+const authSwitchLink = document.getElementById('authSwitchLink');
+const authSwitch = document.getElementById('authSwitch');
+
+let authMode = 'login';
+
+function updateAuthUI() {
+  const user = DigiAuth.getUser();
+  if (user) {
+    authUserDisplay.textContent = user.name;
+    authLoginBtn.style.display = 'none';
+    authLogoutBtn.style.display = '';
+  } else {
+    authUserDisplay.textContent = '';
+    authLoginBtn.style.display = '';
+    authLogoutBtn.style.display = 'none';
+  }
+}
+
+function showAuthModal(mode) {
+  authMode = mode;
+  authError.textContent = '';
+  authUsername.value = '';
+  authPassword.value = '';
+  authName.value = '';
+  if (mode === 'register') {
+    authModalTitle.textContent = 'REGISTER';
+    registerFields.style.display = '';
+    authSubmitBtn.textContent = 'REGISTER';
+    authSwitch.innerHTML = 'Have an account? <a id="authSwitchLink">Login</a>';
+  } else {
+    authModalTitle.textContent = 'LOGIN';
+    registerFields.style.display = 'none';
+    authSubmitBtn.textContent = 'LOGIN';
+    authSwitch.innerHTML = 'No account? <a id="authSwitchLink">Register</a>';
+  }
+  document.getElementById('authSwitchLink').addEventListener('click', () => {
+    showAuthModal(mode === 'login' ? 'register' : 'login');
+  });
+  authModal.classList.add('active');
+}
+
+authLoginBtn.addEventListener('click', () => showAuthModal('login'));
+authLogoutBtn.addEventListener('click', () => {
+  DigiAuth.logout();
+  updateAuthUI();
+});
+authCancelBtn.addEventListener('click', () => authModal.classList.remove('active'));
+authModal.addEventListener('click', (e) => {
+  if (e.target === authModal) authModal.classList.remove('active');
+});
+
+authSubmitBtn.addEventListener('click', async () => {
+  authError.textContent = '';
+  const username = authUsername.value.trim();
+  const password = authPassword.value;
+
+  if (!username || !password) {
+    authError.textContent = 'Fill in all fields';
+    return;
+  }
+
+  authSubmitBtn.disabled = true;
+  authSubmitBtn.textContent = '...';
+
+  try {
+    if (authMode === 'register') {
+      const name = authName.value.trim();
+      if (!name) {
+        authError.textContent = 'Name is required';
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.textContent = 'REGISTER';
+        return;
+      }
+      await DigiAuth.register(name, username, password);
+    } else {
+      await DigiAuth.login(username, password);
+    }
+    authModal.classList.remove('active');
+    updateAuthUI();
+  } catch (err) {
+    authError.textContent = err.message;
+  }
+
+  authSubmitBtn.disabled = false;
+  authSubmitBtn.textContent = authMode === 'register' ? 'REGISTER' : 'LOGIN';
+});
+
+authPassword.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') authSubmitBtn.click();
+});
+
+updateAuthUI();
+DigiAuth.verify().then(updateAuthUI);
 </script>
 </body>
 </html>
