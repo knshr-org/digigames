@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+    branches:
+      - main
+      - development
+
+jobs:
+  build:
+    name: Build & Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: api/node_modules
+          key: npm-${{ hashFiles('api/package-lock.json') }}
+          restore-keys: npm-
+
+      - name: Install dependencies
+        run: cd api && npm install
+
+      - name: Build pipes bundle
+        run: node games/pipes/build-bundle.js
+
+      - name: Verify pipes bundle is up to date
+        run: |
+          git diff --exit-code games/pipes/pipes.html || {
+            echo "❌ pipes.html is out of date. Run: node games/pipes/build-bundle.js"
+            exit 1
+          }
