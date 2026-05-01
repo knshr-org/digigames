@@ -1375,13 +1375,16 @@ function gameOver() {
   stage.classList.add('shake');
   setTimeout(() => stage.classList.remove('shake'), 380);
 
+  const goSubmitBtn = document.getElementById('goSubmitBtn');
   if (scoreNameInput) {
     if (LeaderboardAPI.isLoggedIn()) {
       scoreNameInput.parentElement.style.display = 'none';
+      if (goSubmitBtn) goSubmitBtn.style.display = 'none';
       scoreNameInput.value = LeaderboardAPI.getStoredName();
       setTimeout(() => submitScore(), 300);
     } else {
       scoreNameInput.parentElement.style.display = '';
+      if (goSubmitBtn) goSubmitBtn.style.display = '';
       scoreNameInput.value = LeaderboardAPI.getStoredName();
       scoreNameInput.disabled = false;
     }

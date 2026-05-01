@@ -555,9 +555,9 @@ function snakeShowLeaderboard(finalScore) {
     snakeLbNameRow.style.display = '';
     snakeLbName.value = snakeGetName();
     snakeLbName.disabled = false;
+    snakeLbSubmit.disabled = false;
+    snakeLbSubmit.textContent = 'SUBMIT';
   }
-  snakeLbSubmit.disabled = false;
-  snakeLbSubmit.textContent = 'SUBMIT';
   snakeLbTab = 'global';
   snakeLbGlobal.classList.add('active');
   snakeLbMine.classList.remove('active');
