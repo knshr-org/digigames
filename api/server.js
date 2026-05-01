@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const { runMigrations } = require('./migrate');
 
 const app = express();
+app.set('trust proxy', 1);
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'https://digigames.fun,https://www.digigames.fun').split(',');
 app.use(cors({
   origin(origin, cb) {
@@ -191,7 +192,7 @@ app.post('/api/scores', submitLimiter, authenticateOptional, async (req, res) =>
       [playerName, score, game_id, userId]
     );
     const [rankRows] = await pool.query(
-      'SELECT COUNT(*) AS rank FROM scores WHERE score > ? AND game_id = ?',
+      'SELECT COUNT(*) AS `rank` FROM scores WHERE score > ? AND game_id = ?',
       [score, game_id]
     );
     const rank = (rankRows[0].rank || 0) + 1;
