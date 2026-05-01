@@ -1198,10 +1198,10 @@ function showBanner(m) {
 let bannerStart = 0, bannerActive = false;
 function triggerBanner(m) {
   bannerG.innerHTML = `
-    <g transform="translate(270 330)">
-      <rect x="-180" y="-45" width="360" height="90" rx="18" fill="${m.col}" stroke="#2a1a10" stroke-width="4"/>
-      <text y="18" text-anchor="middle" font-family="Rubik" font-weight="900" font-size="52"
-            fill="#fff" stroke="#2a1a10" stroke-width="5" paint-order="stroke fill">${m.text}</text>
+    <g transform="translate(270 80)">
+      <rect x="-70" y="-16" width="140" height="32" rx="10" fill="${m.col}" opacity="0.85" stroke="#2a1a10" stroke-width="2"/>
+      <text y="8" text-anchor="middle" font-family="Rubik" font-weight="800" font-size="18"
+            fill="#fff" stroke="#2a1a10" stroke-width="2" paint-order="stroke fill">${m.text}</text>
     </g>
   `;
   bannerStart = performance.now();
@@ -1363,6 +1363,9 @@ function showMenu() {
 function gameOver() {
   if (state.mode !== 'play') return;
   state.mode = 'over';
+  bannerActive = false;
+  bannerG.setAttribute('opacity', '0');
+  bannerG.innerHTML = '';
   state.best = Math.max(state.best, state.score);
   localStorage.setItem('pipes_best_score', state.best);
   bestText.textContent = state.best;
