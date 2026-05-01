@@ -196,18 +196,18 @@
 
   /* ===== Game view ===== */
   #gameView {
-    position: fixed;
-    top: 0; right: 0; bottom: 0; left: 0;
-    z-index: 100;
-    background: #0a0a0f;
     display: none;
     flex-direction: column;
-    width: 100%;
-    height: 100%;
-    height: 100dvh;
+    background: #0a0a0f;
   }
   #gameView.active {
     display: flex;
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: 100;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
   }
 
   #gameBar {
@@ -510,6 +510,7 @@ const gameLoading = document.getElementById('gameLoading');
 function showMenu() {
   gameFrame.src = 'about:blank';
   gameView.classList.remove('active');
+  void gameView.offsetHeight;
   menuView.classList.remove('hidden');
   document.title = 'DigiGames';
 }
@@ -523,6 +524,7 @@ function showGame(key) {
   gameTitle.textContent = route.title;
   document.title = route.title + ' - DigiGames';
   gameFrame.onload = () => gameLoading.classList.add('hidden');
+  gameFrame.onerror = () => showMenu();
   gameFrame.src = route.src;
 }
 
