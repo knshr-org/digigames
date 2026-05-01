@@ -548,8 +548,14 @@ function snakeShowLeaderboard(finalScore) {
   snakeLastScore = finalScore;
   snakeLbScore.textContent = finalScore;
   var loggedIn = typeof DigiAuth !== 'undefined' && DigiAuth.isLoggedIn();
-  snakeLbName.value = snakeGetName();
-  snakeLbName.disabled = loggedIn;
+  if (loggedIn) {
+    snakeLbNameRow.style.display = 'none';
+    snakeLbName.value = snakeGetName();
+  } else {
+    snakeLbNameRow.style.display = '';
+    snakeLbName.value = snakeGetName();
+    snakeLbName.disabled = false;
+  }
   snakeLbSubmit.disabled = false;
   snakeLbSubmit.textContent = 'SUBMIT';
   snakeLbTab = 'global';
@@ -557,6 +563,9 @@ function snakeShowLeaderboard(finalScore) {
   snakeLbMine.classList.remove('active');
   snakeLoadScores();
   snakeLbOverlay.classList.add('active');
+  if (loggedIn) {
+    setTimeout(function() { snakeSubmitScore(); }, 300);
+  }
 }
 
 async function snakeSubmitScore() {
@@ -649,6 +658,23 @@ snakeLbMine.addEventListener('click', function() {
   snakeLbGlobal.classList.remove('active');
   snakeLoadScores();
 });
+
+(async function fetchBestScore() {
+  if (typeof DigiAuth === 'undefined' || !DigiAuth.isLoggedIn()) return;
+  try {
+    var headers = {};
+    var ah = DigiAuth.authHeaders();
+    for (var k in ah) headers[k] = ah[k];
+    var name = snakeGetName();
+    var res = await fetch(SNAKE_API_BASE + '/api/scores/player?game_id=snake&name=' + encodeURIComponent(name) + '&limit=1', { headers: headers });
+    if (!res.ok) return;
+    var rows = await res.json();
+    if (rows.length && rows[0].score > best) {
+      best = rows[0].score;
+      bestEl.textContent = best;
+    }
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>

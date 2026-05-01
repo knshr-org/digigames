@@ -1376,17 +1376,20 @@ function gameOver() {
   setTimeout(() => stage.classList.remove('shake'), 380);
 
   if (scoreNameInput) {
-    scoreNameInput.value = LeaderboardAPI.getStoredName();
     if (LeaderboardAPI.isLoggedIn()) {
-      scoreNameInput.disabled = true;
+      scoreNameInput.parentElement.style.display = 'none';
+      scoreNameInput.value = LeaderboardAPI.getStoredName();
+      setTimeout(() => submitScore(), 300);
     } else {
+      scoreNameInput.parentElement.style.display = '';
+      scoreNameInput.value = LeaderboardAPI.getStoredName();
       scoreNameInput.disabled = false;
     }
   }
   const submitText = document.getElementById('goSubmitText');
-  if (submitText) submitText.textContent = 'SUBMIT SCORE';
+  if (submitText && !LeaderboardAPI.isLoggedIn()) submitText.textContent = 'SUBMIT SCORE';
   const submitRect = document.querySelector('#goSubmitBtn rect');
-  if (submitRect) submitRect.setAttribute('fill', '#44c4a9');
+  if (submitRect && !LeaderboardAPI.isLoggedIn()) submitRect.setAttribute('fill', '#44c4a9');
 
   AudioManager.playSFX('hit');
   AudioManager.fadeBGM(0, 500);
@@ -2104,6 +2107,18 @@ function boot() {
   stage.focus();
 }
 boot();
+
+(async function fetchBestScore() {
+  if (!LeaderboardAPI.isLoggedIn()) return;
+  try {
+    const rows = await LeaderboardAPI.getPlayerScores(LeaderboardAPI.getStoredName(), 1);
+    if (rows.length && rows[0].score > state.best) {
+      state.best = rows[0].score;
+      localStorage.setItem('pipes_best_score', state.best);
+      bestText.textContent = state.best;
+    }
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
