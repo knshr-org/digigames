@@ -150,16 +150,29 @@ node games/pipes/build-bundle.js
 3. Set up a MySQL database and configure `DATABASE_URL` env var
 4. Run `npm start` to launch the dev server at `http://localhost:3000`
 
+### Branch Policy
+
+| Branch | Purpose | Merges into |
+|--------|---------|-------------|
+| `main` | Production — auto-deploys to Railway | — |
+| `development` | Integration branch for testing | `main` |
+| `feature/*`, `fix/*` | Work branches | `development` |
+
+- All feature and fix branches are created from `development`.
+- Pull requests target `development`, not `main`.
+- `development` is merged into `main` when ready for release.
+- Direct pushes to `main` and `development` are restricted.
+
 ### Workflow
 
-1. Create a branch: `git checkout -b feature/your-feature`
+1. Create a branch from `development`: `git checkout development && git checkout -b feature/your-feature`
 2. Make changes, test locally
 3. If editing pipes source files (`games/pipes/index.html` or `games/pipes/js/*.js`), rebuild the bundle:
    ```bash
    node games/pipes/build-bundle.js
    ```
 4. Commit and push your branch
-5. Open a pull request against `main`
+5. Open a pull request against `development`
 
 ### Guidelines
 
@@ -180,4 +193,4 @@ node games/pipes/build-bundle.js
 
 ## Deployment
 
-Deployed on Railway. Push to `main` triggers auto-deploy. Set `JWT_SECRET` env var for production auth.
+Deployed on Railway. Merging `development` into `main` triggers auto-deploy. Set `JWT_SECRET` env var for production auth.
