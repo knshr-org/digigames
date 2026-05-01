@@ -141,6 +141,43 @@ After editing pipes source files, rebuild the bundle:
 node games/pipes/build-bundle.js
 ```
 
+## Contributing
+
+### Setup
+
+1. Clone the repo
+2. Run `npm install` to install API dependencies
+3. Set up a MySQL database and configure `DATABASE_URL` env var
+4. Run `npm start` to launch the dev server at `http://localhost:3000`
+
+### Workflow
+
+1. Create a branch: `git checkout -b feature/your-feature`
+2. Make changes, test locally
+3. If editing pipes source files (`games/pipes/index.html` or `games/pipes/js/*.js`), rebuild the bundle:
+   ```bash
+   node games/pipes/build-bundle.js
+   ```
+4. Commit and push your branch
+5. Open a pull request against `main`
+
+### Guidelines
+
+- **Don't edit `games/pipes/pipes.html` directly** — it's auto-generated. Edit source files in `games/pipes/` and rebuild.
+- **Snake is single-file** — edit `games/snake/index.html` directly, no build step needed.
+- **Shared modules** live in `js/` (e.g., `auth.js`). Games reference them via relative path (`../../js/auth.js`).
+- **Migrations are append-only** — never modify existing migration files. Create a new one with the next sequence number.
+- **Auth is optional** — all features must work for guests (manual name input) and logged-in users.
+- **Test both games** after API or shared module changes.
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | MySQL connection string |
+| `JWT_SECRET` | Yes (prod) | Secret for signing auth tokens |
+| `PORT` | No | Server port (default: 3000) |
+
 ## Deployment
 
 Deployed on Railway. Push to `main` triggers auto-deploy. Set `JWT_SECRET` env var for production auth.
