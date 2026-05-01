@@ -1,0 +1,18 @@
+name: Enforce Branch Policy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only allow PRs from development
+        run: |
+          if [ "${{ github.head_ref }}" != "development" ]; then
+            echo "❌ Only development branch can PR into main"
+            exit 1
+          fi
+          echo "✅ OK"
