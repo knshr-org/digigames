@@ -29,10 +29,7 @@
     transition: opacity 0.25s, transform 0.25s;
   }
   #menuView.hidden {
-    opacity: 0;
-    pointer-events: none;
-    position: absolute;
-    transform: scale(0.97);
+    display: none;
   }
 
   header {
@@ -103,7 +100,7 @@
   .card::before {
     content: '';
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     border-radius: 16px;
     opacity: 0;
     transition: opacity 0.3s;
@@ -200,11 +197,14 @@
   /* ===== Game view ===== */
   #gameView {
     position: fixed;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     z-index: 100;
     background: #0a0a0f;
     display: none;
     flex-direction: column;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
   }
   #gameView.active {
     display: flex;
@@ -284,7 +284,7 @@
   /* ===== Loading spinner ===== */
   #gameLoading {
     position: absolute;
-    inset: 44px 0 0 0;
+    top: 44px; right: 0; bottom: 0; left: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -339,7 +339,7 @@
   #authModal {
     display: none;
     position: fixed;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     z-index: 200;
     background: rgba(0,0,0,0.7);
     align-items: center;
